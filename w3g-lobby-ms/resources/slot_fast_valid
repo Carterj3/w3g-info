@@ -1,0 +1,37 @@
+
+	<h2>
+	<div id="gameinfo" data-gid="224396" data-status="lobby"></div>
+	<b>Gamename</b>: [ENT] Island Defense #49	<br /><b>Bot name</b>: ENT.60				<br /><b>Duration</b>: 01:36:51		<br /><b>Map</b>: IDProt4.0.1b.w3x</h2>
+	<table>
+	<tr>
+		<th class="games">Username</th>
+		<th class="games">Realm</th>
+		<th class="games">Ping</th>
+				<th class="games">ELO</th>
+		<th class="games">W/L</th>
+				</tr>
+
+<tr>
+	<td colspan="6" class="slotbig">
+		<b>Builders</b> (avg: 1000; change: <i>+15/-15</i>)
+	</td>
+</tr>
+<tr>
+	<td class="slot">
+		<a href="/customstats/islanddefense/player/wc3noob/" target="blank">wc3noob</a>
+	</td>
+	<td class="slot">USEast</td>
+	<td class="slot">17</td>
+	<td class="slot">1000</td>
+	<td class="slot">57/45</td>
+</tr>
+<tr><td colspan="3" class="slot">Empty</td></tr>
+<tr><td colspan="3" class="slot">Empty</td></tr>
+<tr><td colspan="3" class="slot">Empty</td></tr>
+<tr><td colspan="3" class="slot">Empty</td></tr>
+<tr><td colspan="3" class="slot">Empty</td></tr>
+<tr>
+	<td class="slot"><a href="/customstats/islanddefense/player/SUROTHEDEATH/" target="blank">SUROTHEDEATH</a></td>
+	<td class="slot">Europe</td><td class="slot">56</td><td class="slot">1000</td><td class="slot">24/29</td></tr><tr><td colspan="3" class="slot">Empty</td></tr><tr><td class="slot"><a href="/customstats/islanddefense/player/TheBrit/" target="blank">TheBrit</a></td><td class="slot">Europe</td><td class="slot">51</td><td class="slot">1000</td><td class="slot">42/45</td></tr><tr><td colspan="3" class="slot">Empty</td></tr><tr><td colspan="6" class="slotbig"><b>Titan</b> (avg: 1000; change: <i>+0/-0</i>)</td></tr><tr><td colspan="3" class="slot">Empty</td></tr>
+</table>
+

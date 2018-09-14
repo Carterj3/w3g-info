@@ -1,0 +1,12 @@
+[package]
+name = "w3g-downloader-ms"
+version = "0.1.0"
+authors = ["Jeffrey.Carter <JeffreyKCarter@gmail.com>"]
+publish = false
+
+[dependencies]
+w3g-common = { path = "../w3g-common" }
+
+# Download + Parsing HTML
+reqwest = "0.8.8"       # MIT/Apache-2.0
+select = "0.4.2"        # MIT

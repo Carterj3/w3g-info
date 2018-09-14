@@ -1,0 +1,16 @@
+[package]
+name = "w3g-stats-ms"
+version = "0.1.0"
+authors = ["Jeffrey.Carter <JeffreyKCarter@gmail.com>"]
+publish = false
+
+[dependencies]
+w3g-common = { path = "../w3g-common" }
+
+# Mongo 
+bson = "0.12.2"
+mongodb = "0.3.10"
+
+# Logging   
+log = "0.4.5"           # MIT/Apache-2.0
+env_logger = "0.5.13"   # MIT/Apache-2.0

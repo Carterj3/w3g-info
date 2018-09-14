@@ -1,0 +1,7 @@
+[package]
+name = "w3g-parser-ms"
+version = "0.1.0"
+authors = ["Jeffrey.Carter <JeffreyKCarter@gmail.com>"]
+publish = false
+
+[dependencies]

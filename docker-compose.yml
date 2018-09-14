@@ -1,0 +1,71 @@
+version: '3'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    restart: always
+    networks:
+      - w3g
+  kafka:
+    image: wurstmeister/kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    networks:
+      - w3g
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS_SEPARATOR: "$$'\n'"
+      KAFKA_CREATE_TOPICS: |
+        w3g-router-loopback:1:1:delete --config=compression.type=snappy
+        id-stats-requests:1:1:delete
+        id-bulk-stats-responses:1:1:delete
+        id-bulk-stats-requests:1:1:delete
+        id-lobby-requests:1:1:delete
+        id-stats-updates:1:1:delete
+  mongodb:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_DATA_DIR: /data/db
+      MONGO_LOG_DIR: /dev/null
+    networks:
+      - w3g
+  w3g-router-ms:
+    build: "."
+    command: "/app/target/release/w3g-router-ms"
+    restart: always
+    depends_on:
+      - kafka
+    environment:
+      ROCKET_ENV: production
+      RUST_LOG: w3g_common=debug,main=trace
+    ports:
+      - "8080:80" 
+    networks:
+      - w3g
+  w3g-stats-ms:
+    build: "."
+    command: "/app/target/release/w3g-stats-ms"
+    restart: always
+    depends_on:
+      - kafka
+      - mongodb  
+    environment: 
+      RUST_LOG: w3g_common=debug,main=trace
+    networks:
+      - w3g
+  w3g-lobby-ms:
+    build: "."
+    command: "/app/target/release/w3g-lobby-ms"
+    restart: always
+    depends_on:
+      - kafka  
+    environment: 
+      RUST_LOG: w3g_common=debug,main=trace
+    networks:
+      - w3g
+
+networks:
+  w3g:
+    driver: bridge
