@@ -10,6 +10,12 @@ use w3g_common::parser::Replay;
 use serde::{Deserialize, Serialize};
 
 #[test]
+fn test_smoke_11379705() {
+    // v 1.30
+    w3g_common::parser::extract_replay("resources/11379705.w3g").unwrap();
+}
+
+#[test]
 fn test_smoke_11151616() {
     w3g_common::parser::extract_replay("resources/11151616.w3g").unwrap();
 }

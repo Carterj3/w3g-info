@@ -9,7 +9,12 @@ extern crate serde_derive;
 #[macro_use]
 extern crate log;
 
+extern crate rocket;
+extern crate rocket_contrib;
+
 extern crate reqwest;
+
+extern crate bbt;
 
 extern crate byteorder;
 extern crate libflate;
@@ -47,6 +52,7 @@ pub mod errors {
             /* NoneError doesn't like to be implemented. Just use `.ok_or("Nothing")?` instead of only `?` */
             // Nothing(::std::option::NoneError);
             Reqwest(::reqwest::Error);
+            RocketJson(::rocket_contrib::SerdeError);
         }
     }
 }

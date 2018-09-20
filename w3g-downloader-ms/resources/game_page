@@ -1,0 +1,266 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" 
+   "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>	
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="description" content="DotA OpenStats, php/MySQL webstatistic" />
+  <meta name="keywords" content="dota, games, openstats" />
+  <meta name="copyright" content="openstats.iz.rs" /> 
+  <meta name="resource-type" content="document" /> 
+  <meta name="distribution" content="GLOBAL" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="fb:app_id" content="250862834944649"/>
+  <link rel="stylesheet" href="https://entgaming.net/customstats/themes/default/style.css" />
+  <title>ENT Gaming</title>
+  <script type="text/javascript" src="https://entgaming.net/customstats/js/jquery-latest.min.js"></script>
+  <script type="text/javascript" src="https://entgaming.net/customstats/js/scripts.js"></script>
+    <script src="https://entgaming.net/customstats/js/jquery.colorbox.js"></script>
+</head>
+  <body>
+  <div class="topbar" data-dropdown="dropdown">
+      <div class="fill">
+        <div class="container">
+          <!--<a class="brand" href="https://entgaming.net/customstats/">Home</a>-->
+          <ul class="nav">
+		    <li><a href="/forum">Forums</a></li>
+		    <li ><a href="https://entgaming.net/customstats/islanddefense/">Home</a></li>
+            <li class="active"><a href="https://entgaming.net/customstats/islanddefense/games/">Games</a></li>
+            <li ><a href="https://entgaming.net/customstats/islanddefense/top/">Top Players</a></li>
+			<li ><a href="https://entgaming.net/customstats/bans/">Bans</a></li>
+			<li ><a href="https://entgaming.net/customstats/admins/">Admins</a></li>
+  		    <li class="dropdown">
+		     <a href="#" class="dropdown-toggle">islanddefense</a>
+		       <ul class="dropdown-menu">
+                                 <li><a href="/openstats/dota/">DotA normal</a></li>
+                                 <li><a href="/openstats/lod/">DotA LoD</a></li>
+				 <li><a href="https://entgaming.net/customstats/battleships/">Battleships</a></li>
+                                 <li><a href="https://entgaming.net/customstats/dihl/">DIHL</a></li>
+				 <li><a href="https://entgaming.net/customstats/castlefight/">Castle Fight</a></li>
+                                 <li><a href="https://entgaming.net/customstats/cfone/">Castle Fight 1v1</a></li>
+				 <li><a href="https://entgaming.net/customstats/civwars/">Civilization Wars</a></li>
+				 <li><a href="https://entgaming.net/customstats/enfo/">Enfo's FFB</a></li>
+				 <!--li><a href="https://entgaming.net/customstats/herolinewars/">Hero Line Wars</a></li>
+				 <li><a href="https://entgaming.net/customstats/herowarsice/">Hero Wars Icelands</a></li-->
+				 <li><a href="https://entgaming.net/customstats/islanddefense/">Island Defense</a></li>
+				 <li><a href="https://entgaming.net/customstats/legionmega/">Legion TD Mega</a></li>
+				 <li><a href="https://entgaming.net/customstats/legionmegaone/">Legion TD Mega 1v1</a></li>
+                                 <li><a href="https://entgaming.net/customstats/legionmegatwo/">Legion TD Mega 2v2</a></li>
+                                 <!--li><a href="https://entgaming.net/customstats/ltdx10/">LTD x10</a></li-->
+                                 <li><a href="https://entgaming.net/customstats/legiontdhell/">HELLHALT TD</a></li>
+                                 <li><a href="https://entgaming.net/customstats/lihl/">LIHL (ENT LTD IHL)</a></li>
+				 <li><a href="https://entgaming.net/customstats/nwu/">Naruto Wars Unlimited</a></li>
+				 <li><a href="https://entgaming.net/customstats/riskdevo/">Risk Devolution</a></li>
+				 <!--li><a href="https://entgaming.net/customstats/nwuih/">NWU IH</a></li>
+				 <li><a href="https://entgaming.net/customstats/idih/">IDIH (ENT ID IHL)</a></li-->
+		        </ul>
+		    </li>
+			          </ul>
+		          </div>
+      </div>
+    </div>
+<center>
+   <div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) return;
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_GB/all.js#xfbml=1&appId=250862834944649";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+   <div class="container">
+    <div class="content">
+	    <div class="page-header">
+          <h2>[ENT] Island Defense #35</h2>
+        </div>
+   <table class="GameInfo">
+    <tr>
+		<td class="GameInfoInner">Date: <b>14/06/2018, 15:19</b></td>
+		<td class="GameInfoInner">Creator: <b></b></td>
+		<td class="GameInfoInner">Duration: <b>48m55s</b></td>
+		<td class="GameInfoInner" align="right"><a href='/replay.php?id=10915900'>Download</a></td>
+     </tr>
+
+    </table>
+       	<table class="zebra-striped">
+	   <tr>
+		 <td class="TableTitle padLeft" width="60">Hero</td>
+		 <td class="TableTitle" width="140">Player</td>
+		 <td class="TableTitle" width="70">Flag</td>
+		 <td class="TableTitle" width="70">Left</td>
+		 <td class="TableTitle" width="60">Score change</td>
+		 <td class="TableTitle" width="220">Reason</td>
+		</tr>
+   <tr class="SentinelRow">
+		<td></td>
+		<td></td>
+		<td><span class="win-sentinel">BUILDERS</span></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		</tr>
+    <tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="United States" src="https://entgaming.net/customstats/images/flags/us.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/izanagi/">izanagi</a><br/>useast.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>48m51s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="Finland" src="https://entgaming.net/customstats/images/flags/fi.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/humme50/">humme50</a><br/>europe.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>2m08s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="United States" src="https://entgaming.net/customstats/images/flags/us.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/fenlaw/">fenlaw</a><br/>uswest.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>27m12s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="Denmark" src="https://entgaming.net/customstats/images/flags/dk.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/theratking/">theratking</a><br/>uswest.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>0m01s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Dropped due to desync</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="Argentina" src="https://entgaming.net/customstats/images/flags/ar.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/add/">add</a><br/>uswest.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>26m45s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="Poland" src="https://entgaming.net/customstats/images/flags/pl.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/placek/">placek</a><br/>europe.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>21m30s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="Turkey" src="https://entgaming.net/customstats/images/flags/tr.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/etipekl/">etipekl</a><br/>uswest.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>16m31s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="United States" src="https://entgaming.net/customstats/images/flags/us.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/quigz579/">quigz579</a><br/>useast.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>48m44s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="France" src="https://entgaming.net/customstats/images/flags/fr.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/recount/">recount</a><br/>europe.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>48m39s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="United States" src="https://entgaming.net/customstats/images/flags/us.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/hellaboosted/">hellaboosted</a><br/>useast.battle.net</td>
+		<td><div>winner</div></td>
+		<td><div>48m55s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	<tr class="SentinelRow">
+		<td></td>
+		<td></td>
+		<td><span class="win-sentinel">TITAN</span></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		</tr>
+    <tr class="GameRow">
+		<td class="padLeft"><img title="No hero" alt="" width="40" src="https://entgaming.net/customstats/images/heroes/blank.gif"></td>
+		<td><img  title="Ukraine" src="https://entgaming.net/customstats/images/flags/ua.png" rel="FlagToolTip" data-placement="above" alt="Flag" class="imgvalign" /> <a href="https://entgaming.net/customstats/islanddefense/player/chantry/">chantry</a><br/>europe.battle.net</td>
+		<td><div>loser</div></td>
+		<td><div>48m36s</div></td>
+		<td><div>+0</div></td>
+		<td><span class='leftReason'>Left the game voluntarily</span></td>
+			  
+	  </tr>
+	</table>
+		</div>
+</div>
+   <a name="comments"></a>
+<div class="container">
+    <div class="content">
+	   <div class="page-header">
+          <h1>Comments</h1>
+       </div>
+	 </div>
+</div><div id="comment-form">
+ <div class="container">
+  <div class="content">
+    <div class="TableTitle padLeft comment_reply">Leave a Reply</div>
+       <p>You must be <a href="https://entgaming.net/customstats/action/login/">logged in</a> to post a comment.</p>
+      </div>
+ </div>
+</div>  
+<br />
+<center>
+<script type="text/javascript"><!--
+       google_ad_client = "ca-pub-0857519020745551";
+/* ad1 */
+google_ad_slot = "1121280432";
+google_ad_width = 728;
+google_ad_height = 90;
+//-->
+</script>
+<script type="text/javascript"
+src="https://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+</center>
+
+
+   <footer>
+        <div class="modal-footer">@2018 Powered by DotA OpenStats 2.0</div>
+		 
+  <div class="PageGen">
+    Generated in: 0.0035 sec. Queries: 4  </div>
+    </footer>
+<!-- Piwik -->
+<script type="text/javascript"> 
+  var _paq = _paq || [];
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u=(("https:" == document.location.protocol) ? "https" : "http") + "://entgaming.net/piwik/";
+    _paq.push(['setTrackerUrl', u+'piwik.php']);
+    _paq.push(['setSiteId', 1]);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0]; g.type='text/javascript';
+    g.defer=true; g.async=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+  })();
+
+</script>
+<noscript><p><img src="https://entgaming.net/piwik/piwik.php?idsite=1" style="border:0" alt="" /></p></noscript>
+<!-- End Piwik Code -->
+</body>
+</html>

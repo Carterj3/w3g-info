@@ -5,9 +5,10 @@ extern crate error_chain;
 extern crate log;
 extern crate env_logger;
 
+use env_logger::{Builder, Target};
+
 extern crate chrono;
 
-use chrono::DateTime;
 use chrono::Utc;
 
 extern crate reqwest; 
@@ -29,6 +30,7 @@ use w3g_common::pubsub::model::Player;
 use w3g_common::pubsub::ID_BULK_STATS_REQUESTS_TOPIC;
 use w3g_common::pubsub::ID_LOBBY_REQUESTS_TOPIC;
  
+use std::env;
 use std::collections::HashMap;
 use std::thread;
 
@@ -52,7 +54,7 @@ fn lobby_request_handler(mut consumer: PubSubConsumer, mut producer: PubSubProdu
             trace!("Received lobby request for key: {:?}", key);
 
             let current_time = Utc::now();
-            if (current_time.timestamp() > expiration_time)
+            if current_time.timestamp() > expiration_time
             {
                 cached_players = match get_players_for_bot(bot_id)
                 {
@@ -203,9 +205,20 @@ fn get_players_for_bot(bot_id: &str) -> Result<HashMap<u8, Player>>
 }
 
 fn main() {
-    env_logger::init();
+    let mut builder = Builder::new();
+    builder.target(Target::Stdout);
+    if env::var("RUST_LOG").is_ok() {
+        builder.parse(&env::var("RUST_LOG").unwrap());
+    }
+    builder.init();
 
-    let broker_uris = vec!(String::from("kafka:9092"));
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
+    w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
+        .expect("Kafka not initialized yet");
 
     let producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();

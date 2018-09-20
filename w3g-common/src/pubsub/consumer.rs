@@ -29,6 +29,8 @@ impl PubSubConsumer
                 .with_group(group.into())
                 .with_fallback_offset(FetchOffset::Earliest)
                 .with_offset_storage(GroupOffsetStorage::Kafka)
+                .with_fetch_max_bytes_per_partition(20000000)
+                .with_retry_max_bytes_limit(20000000)
                 .create()?;
 
         Ok(
@@ -74,7 +76,7 @@ impl PubSubConsumer
                     Ok(data) => data,
                 };
 
-                debug!("Received key: {:?}, value: {:?}", key, value);
+                trace!("Received key: {:?}, value: {:?}", key, value);
 
                 data.push((key, value));
             }

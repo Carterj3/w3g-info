@@ -46,13 +46,15 @@ impl PubSubProducer
     pub fn send_to_topic<D>(&mut self, topic: &str, key: u64, value: D) -> Result<()>
         where D: Serialize+Debug
     {
-        debug!("Sending? topic: {:?}, key: {:?}, value: {:?}", topic, key, value);
+        trace!("Sending? topic: {:?}, key: {:?}, value: {:?}", topic, key, value);
 
         let mut key_bytes = Vec::new();
         key_bytes.write_u64::<BigEndian>(key)?;
 
         let mut serialized = Vec::new();
         value.serialize(&mut Serializer::new(&mut serialized))?;
+
+        debug!("Sending? topic: {:?}, key: {:?} value.len: {}", topic, key, serialized.len());
 
         /* TODO: Compress data */
 

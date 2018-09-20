@@ -8,6 +8,8 @@ extern crate error_chain;
 extern crate log;
 extern crate env_logger;
 
+use env_logger::{Builder, Target};
+
 extern crate rocket; 
 extern crate rocket_contrib;
 
@@ -26,6 +28,7 @@ use w3g_common::errors::Result;
 use w3g_common::pubsub::PubSubProducer;
 use w3g_common::pubsub::PubSubConsumer;
 use w3g_common::pubsub::model::IdStats; 
+use w3g_common::pubsub::W3G_LOOPBACK_TOPIC;
 use w3g_common::pubsub::ID_BULK_STATS_RESPONSES_TOPIC;
 use w3g_common::pubsub::ID_LOBBY_REQUESTS_TOPIC;
 
@@ -33,6 +36,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex}; 
 use std::thread;
 use std::collections::HashMap;
+use std::env;
 
 const KAFKA_GROUP: &'static str = "w3g-router-ms";
 
@@ -44,26 +48,36 @@ struct RustRouterConfig
 }
 
 #[get("/")]
-fn index() -> Result<Json<Vec<(u64, HashMap<u8, IdStats>)>>> {
+fn index() -> Result<Json<Vec<(u64, String)>>> {
 
-    let broker_uris = vec!(String::from("kafka:9092"));  
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
 
     let mut producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();
-    let mut consumer = PubSubConsumer::new(broker_uris.clone(), ID_BULK_STATS_RESPONSES_TOPIC, KAFKA_GROUP)
+    let mut consumer = PubSubConsumer::new(broker_uris.clone(), W3G_LOOPBACK_TOPIC, KAFKA_GROUP)
         .unwrap();
 
-    producer.send_to_topic(ID_LOBBY_REQUESTS_TOPIC, 1337, "")?;
-    let responses: Vec<(u64, HashMap<u8, IdStats>)> = consumer.listen()?;
+    producer.send_to_topic(W3G_LOOPBACK_TOPIC, 1337, "Hello World")?;
+    let responses: Vec<(u64, String)> = consumer.listen()?;
 
-    for (key, players) in responses.clone()
-    {
-        trace!("Received stats response for key: {:?}={:?}", key, players);
-    }
-    
     Ok(Json(responses))
 }
 
+#[get("/log")]
+fn log_test() -> &'static str {
+
+    trace!("This is a trace message");
+    debug!("This is a debug message");
+    info!("This is an info message");
+    warn!("This is a warn message");
+    error!("This is an error message");
+
+    "See logs?"
+}
 
 ///
 /// Gets the stats of all the players in the current lobby for the given MapType
@@ -86,7 +100,7 @@ fn lobby( map: String
     };
     let key = common.pubsub_key.fetch_add(1, Ordering::SeqCst);
 
-    producer.send_to_topic("id-lobby-requests", key, "")?;
+    producer.send_to_topic(ID_LOBBY_REQUESTS_TOPIC, key, "")?;
 
     trace!("Waiting for lobby response for key: {:?}", key);
     while !common.stats_map.contains_key(&key)
@@ -128,7 +142,20 @@ fn bulk_stats_handler(mut consumer: PubSubConsumer, stats_map: Arc<CHashMap<u64,
 }
 
 fn main() {
-    let broker_uris = vec!(String::from("kafka:9092")); 
+    let mut builder = Builder::new();
+    builder.target(Target::Stdout);
+    if env::var("RUST_LOG").is_ok() {
+        builder.parse(&env::var("RUST_LOG").unwrap());
+    }
+    builder.init();
+
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
+    w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
+        .expect("Kafka not initialized yet");
 
     let producer = PubSubProducer::new(broker_uris.clone())
              .unwrap();
@@ -142,11 +169,9 @@ fn main() {
         pubsub_producer: producer,
         stats_map: Arc::clone(&map),
     };
+  
 
-    let topic = String::from("id-bulk-stats-responses");
-    let group = String::from("w3g-router-ms");
-
-    let consumer = PubSubConsumer::new(broker_uris.clone(), topic, group)
+    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_BULK_STATS_RESPONSES_TOPIC, KAFKA_GROUP)
         .unwrap();
 
      let bulk_responses_thread = thread::spawn(move || {
@@ -154,7 +179,7 @@ fn main() {
     });
 
     rocket::ignite()
-        .mount("v1", routes![index, lobby])
+        .mount("v1", routes![index, log_test, lobby])
         .manage(router_config)
         .launch();
 

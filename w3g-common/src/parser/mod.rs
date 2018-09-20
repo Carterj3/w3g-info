@@ -20,3 +20,4 @@ pub use self::parser::Action;
 
 
 pub use self::parser::extract_replay;
+pub use self::parser::parse_replay;

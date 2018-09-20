@@ -1,0 +1,360 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" 
+   "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>	
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="description" content="ENT Gaming dota games" />
+  <meta name="keywords" content="games, dota games" />
+  <meta property="og:title" content="Games" />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://entgaming.net/customstats/games/252/" />
+  <meta property="og:description" content="games, dota games" />
+  <meta property="og:image" content="http://dota2.rs/openstats/images/heroes/HARF.gif"/>
+  <meta property="og:site_name" content="ENT Gaming" />
+  
+  <meta name="copyright" content="openstats.iz.rs" /> 
+  <meta name="resource-type" content="document" /> 
+  <meta name="distribution" content="GLOBAL" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="fb:app_id" content="250862834944649"/>
+  <link rel="stylesheet" href="https://entgaming.net/customstats/themes/default/style.css" />
+  <title>Games  | Page 252</title>
+  <script type="text/javascript" src="https://entgaming.net/customstats/js/jquery-latest.min.js"></script>
+  <script type="text/javascript" src="https://entgaming.net/customstats/js/scripts.js"></script>
+    <script src="https://entgaming.net/customstats/js/jquery.colorbox.js"></script>
+</head>
+  <body>
+  <div class="topbar" data-dropdown="dropdown">
+      <div class="fill">
+        <div class="container">
+          <!--<a class="brand" href="https://entgaming.net/customstats/">Home</a>-->
+          <ul class="nav">
+		    <li><a href="/forum">Forums</a></li>
+		    <li ><a href="https://entgaming.net/customstats/islanddefense/">Home</a></li>
+            <li class="active"><a href="https://entgaming.net/customstats/islanddefense/games/">Games</a></li>
+            <li ><a href="https://entgaming.net/customstats/islanddefense/top/">Top Players</a></li>
+			<li ><a href="https://entgaming.net/customstats/bans/">Bans</a></li>
+			<li ><a href="https://entgaming.net/customstats/admins/">Admins</a></li>
+  		    <li class="dropdown">
+		     <a href="#" class="dropdown-toggle">islanddefense</a>
+		       <ul class="dropdown-menu">
+                                 <li><a href="/openstats/dota/">DotA normal</a></li>
+                                 <li><a href="/openstats/lod/">DotA LoD</a></li>
+				 <li><a href="https://entgaming.net/customstats/battleships/">Battleships</a></li>
+                                 <li><a href="https://entgaming.net/customstats/dihl/">DIHL</a></li>
+				 <li><a href="https://entgaming.net/customstats/castlefight/">Castle Fight</a></li>
+                                 <li><a href="https://entgaming.net/customstats/cfone/">Castle Fight 1v1</a></li>
+				 <li><a href="https://entgaming.net/customstats/civwars/">Civilization Wars</a></li>
+				 <li><a href="https://entgaming.net/customstats/enfo/">Enfo's FFB</a></li>
+				 <!--li><a href="https://entgaming.net/customstats/herolinewars/">Hero Line Wars</a></li>
+				 <li><a href="https://entgaming.net/customstats/herowarsice/">Hero Wars Icelands</a></li-->
+				 <li><a href="https://entgaming.net/customstats/islanddefense/">Island Defense</a></li>
+				 <li><a href="https://entgaming.net/customstats/legionmega/">Legion TD Mega</a></li>
+				 <li><a href="https://entgaming.net/customstats/legionmegaone/">Legion TD Mega 1v1</a></li>
+                                 <li><a href="https://entgaming.net/customstats/legionmegatwo/">Legion TD Mega 2v2</a></li>
+                                 <!--li><a href="https://entgaming.net/customstats/ltdx10/">LTD x10</a></li-->
+                                 <li><a href="https://entgaming.net/customstats/legiontdhell/">HELLHALT TD</a></li>
+                                 <li><a href="https://entgaming.net/customstats/lihl/">LIHL (ENT LTD IHL)</a></li>
+				 <li><a href="https://entgaming.net/customstats/nwu/">Naruto Wars Unlimited</a></li>
+				 <li><a href="https://entgaming.net/customstats/riskdevo/">Risk Devolution</a></li>
+				 <!--li><a href="https://entgaming.net/customstats/nwuih/">NWU IH</a></li>
+				 <li><a href="https://entgaming.net/customstats/idih/">IDIH (ENT ID IHL)</a></li-->
+		        </ul>
+		    </li>
+			          </ul>
+		          </div>
+      </div>
+    </div>
+<center>
+  <div class="container">
+    <div class="content">
+	    <div class="page-header">
+          <h1>Games<small> </small></h1>
+       </div>
+	   
+	   <div style="float:right;">
+	Sort by: <select name="sort">
+	<option value="date">Date</option>
+	<option value="gamename">Game Name</option>
+	<option value="type">Type</option>
+	<option value="creator">Creator</option>
+	</select>
+	</div>
+
+  <table class="zebra-striped">
+   <tr>
+       <td class="TableTitle padLeft" width="365">Game Name</td>
+	   <td class="TableTitle" width="64">Type</td>
+	   <td class="TableTitle" width="120">Duration</td>
+	   <td class="TableTitle" width="195">Date</td>
+	   <td class="TableTitle" width="195">Creator</td>
+   </tr>
+  
+  
+
+   <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915900/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #35</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">48m55s</td>
+	   <td class="GamesRow">14/06/2018, 15:19</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915836/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #37</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">22m55s</td>
+	   <td class="GamesRow">14/06/2018, 15:05</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915785/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #36</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">19m36s</td>
+	   <td class="GamesRow">14/06/2018, 14:51</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915704/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #33</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">19m29s</td>
+	   <td class="GamesRow">14/06/2018, 14:33</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915694/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #34</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">9m06s</td>
+	   <td class="GamesRow">14/06/2018, 14:29</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915682/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #32</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">22m57s</td>
+	   <td class="GamesRow">14/06/2018, 14:27</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915596/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #29</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">59m59s</td>
+	   <td class="GamesRow">14/06/2018, 14:09</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915595/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #30</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">24m48s</td>
+	   <td class="GamesRow">14/06/2018, 14:08</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915572/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #28</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">1h01m06s</td>
+	   <td class="GamesRow">14/06/2018, 14:02</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915564/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #31</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">1m22s</td>
+	   <td class="GamesRow">14/06/2018, 14:00</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915369/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #27</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">8m19s</td>
+	   <td class="GamesRow">14/06/2018, 13:01</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915350/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #26</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">23m49s</td>
+	   <td class="GamesRow">14/06/2018, 12:56</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915250/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #25</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">56m50s</td>
+	   <td class="GamesRow">14/06/2018, 12:28</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915061/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #24</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">12m03s</td>
+	   <td class="GamesRow">14/06/2018, 11:25</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10915036/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #23</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">22m56s</td>
+	   <td class="GamesRow">14/06/2018, 11:18</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10914981/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #22</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">11m57s</td>
+	   <td class="GamesRow">14/06/2018, 10:53</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10914877/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #21</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">34m18s</td>
+	   <td class="GamesRow">14/06/2018, 10:17</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10914662/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #20</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">25m52s</td>
+	   <td class="GamesRow">14/06/2018, 08:53</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10914437/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #19</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">16m38s</td>
+	   <td class="GamesRow">14/06/2018, 07:27</td>
+	   <td class="GamesRow"></td>
+   </tr>
+     <tr class="TableRow28">
+       <td class="padLeft GamesRow"><a href="https://entgaming.net/customstats/islanddefense/game/10914277/" data-placement="right" rel="GameInfoToolTip" title="<div><b>Winner:</b> Unknown</div><div><b>Map:</b> IDProt4.0.1.w3x</div>" ><b><span class='win-draw'>[ENT] Island Defense #18</span></b></a> 
+	   
+	   
+	   </td>
+	   <td class="GamesRow">PUB</td>
+	   <td class="GamesRow">1h00m21s</td>
+	   <td class="GamesRow">14/06/2018, 05:59</td>
+	   <td class="GamesRow"></td>
+   </tr>
+    
+
+  
+   <tr>
+       <td class="TableTitle padLeft" width="365">Game Name</td>
+	   <td class="TableTitle" width="64">Type</td>
+	   <td class="TableTitle" width="120">Duration</td>
+	   <td class="TableTitle" width="195">Date</td>
+	   <td class="TableTitle" width="195">Creator</td>
+   </tr>
+   </table>
+  </div>
+</div> <!-- /container -->
+    
+<div>&nbsp;</div>
+<div class="container">
+    <div class="content">
+	   <div class="pagination">
+	    <ul>
+	   <li class="prev"><a href="https://entgaming.net/customstats/islanddefense/games/1/"><<</a></li><li><a href="https://entgaming.net/customstats/islanddefense/games/249/"><</a></li><li><a href="https://entgaming.net/customstats/islanddefense/games/246/">246</a></li><li><a href="https://entgaming.net/customstats/islanddefense/games/247/">247</a></li><li><a href="https://entgaming.net/customstats/islanddefense/games/248/">248</a></li><li><a href="https://entgaming.net/customstats/islanddefense/games/249/">249</a></li>				<li class="active"><a href="https://entgaming.net/customstats/islanddefense/games/250/">250</a></li>			 </ul>
+			 &nbsp;<span class="totals">Page <b>250</b> of 250</span>
+		 </div>
+    </div>
+</div>
+			   
+<br />
+<center>
+<script type="text/javascript"><!--
+       google_ad_client = "ca-pub-0857519020745551";
+/* ad1 */
+google_ad_slot = "1121280432";
+google_ad_width = 728;
+google_ad_height = 90;
+//-->
+</script>
+<script type="text/javascript"
+src="https://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+</center>
+
+
+   <footer>
+        <div class="modal-footer">@2018 Powered by DotA OpenStats 2.0</div>
+		 
+  <div class="PageGen">
+    Generated in: 2.2353 sec. Queries: 2  </div>
+    </footer>
+<!-- Piwik -->
+<script type="text/javascript"> 
+  var _paq = _paq || [];
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u=(("https:" == document.location.protocol) ? "https" : "http") + "://entgaming.net/piwik/";
+    _paq.push(['setTrackerUrl', u+'piwik.php']);
+    _paq.push(['setSiteId', 1]);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0]; g.type='text/javascript';
+    g.defer=true; g.async=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
+  })();
+
+</script>
+<noscript><p><img src="https://entgaming.net/piwik/piwik.php?idsite=1" style="border:0" alt="" /></p></noscript>
+<!-- End Piwik Code -->
+</body>
+</html>

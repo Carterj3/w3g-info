@@ -1,5 +1,7 @@
+use bbt::Rating;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct Player {
     pub name: String,
     pub realm: String,
@@ -7,11 +9,12 @@ pub struct Player {
 
 impl Player
 {
-    pub fn new(name: String, realm: String) -> Player
+    pub fn new<S1, S2>(name: S1, realm: S2) -> Player
+        where S1: Into<String>, S2: Into<String>
     {
         Player {
-            name,
-            realm,
+            name: name.into(),
+            realm: realm.into(),
         }
     }
 }
@@ -21,6 +24,7 @@ pub enum IdTeam
 {
     Builder,
     Titan,
+    Tie,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -30,9 +34,22 @@ pub struct IdGameResult {
     pub winner: IdTeam,
 }
 
+impl IdGameResult
+{
+    pub fn new(builders: Vec<Player>, titans: Vec<Player>, winner: IdTeam) -> IdGameResult
+    {
+        IdGameResult {
+            builders,
+            titans,
+            winner,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct IdStats {
     pub player: Player,
+    pub rating: Rating,
     pub builder_stats: BuilderStats,
     pub titan_stats: TitanStats,
 }
@@ -43,6 +60,7 @@ impl IdStats
     {
         IdStats {
             player,
+            rating: Rating::new(1500.0, 1500.0 / 3.0),
             builder_stats: BuilderStats::default(),
             titan_stats: TitanStats::default(),
         }
@@ -52,9 +70,9 @@ impl IdStats
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct BuilderStats
 {
-    pub rating: f32,
-    pub wins: u32,
-    pub losses:u32,
+    pub wins: i32,
+    pub losses: i32,
+    pub ties: i32,
 }
 
 impl BuilderStats
@@ -62,9 +80,9 @@ impl BuilderStats
     pub fn default() -> BuilderStats
     {
         BuilderStats {
-            rating: 1500.0,
             wins: 0,
             losses: 0,
+            ties: 0,
         }
     }
 }
@@ -72,9 +90,9 @@ impl BuilderStats
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TitanStats
 {
-    pub rating: f32,
-    pub wins: u32,
-    pub losses:u32,
+    pub wins: i32,
+    pub losses: i32,
+    pub ties: i32,
 }
 
 impl TitanStats
@@ -82,9 +100,9 @@ impl TitanStats
     pub fn default() -> TitanStats
     {
         TitanStats {
-            rating: 1500.0,
             wins: 0,
             losses: 0,
+            ties: 0,
         }
     }
 }

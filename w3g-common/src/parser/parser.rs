@@ -14,19 +14,17 @@ use ::errors::*;
 /// Size of '\0' that commonly occurs at the end of a String
 const NULL_BYTE_LENGTH: usize = 1;
 
-pub fn extract_replay(path: &str) -> Result<Replay>
+pub fn parse_replay(raw: &mut Read) -> Result<Replay>
 {
-    let mut file = File::open(path)?;
-    
-    let magic_string = extract_fixed_length_string(&mut file, 28)?;
-    let file_offset = extract_unsigned_dword(&mut file)?;
-    let compressed_size = extract_unsigned_dword(&mut file)?;
-    let header_version = extract_unsigned_dword(&mut file)?;
-    let decompressed_size = extract_unsigned_dword(&mut file)?;
-    let number_of_compressed_blocks = extract_unsigned_dword(&mut file)?;
+    let magic_string = extract_fixed_length_string(raw, 28)?;
+    let file_offset = extract_unsigned_dword(raw)?;
+    let compressed_size = extract_unsigned_dword(raw)?;
+    let header_version = extract_unsigned_dword(raw)?;
+    let decompressed_size = extract_unsigned_dword(raw)?;
+    let number_of_compressed_blocks = extract_unsigned_dword(raw)?;
 
-    let replay_header = extract_replay_header(&mut file)?;
-    let mut stream = ReplayStream::from_file(file);
+    let replay_header = extract_replay_header(raw)?;
+    let mut stream = ReplayStream::from_file(raw);
 
     let game_header = stream.extract_game_header()?;
     let replay_blocks = stream.extract_blocks()?;
@@ -46,6 +44,13 @@ pub fn extract_replay(path: &str) -> Result<Replay>
             replay_blocks,
         }
     )
+}
+
+pub fn extract_replay(path: &str) -> Result<Replay>
+{
+    let mut file = File::open(path)?;
+    
+    parse_replay(&mut file)
 }
 
 fn extract_replay_header(file: &mut Read) -> Result<ReplayHeader>
@@ -1547,10 +1552,10 @@ pub enum ReplayBlock
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Command {
     /* 1 byte */
-    player_id: u8,
+    pub player_id: u8,
     /* 1 word */
-    num_bytes: u16,
-    actions: Vec<Action>,
+    pub num_bytes: u16,
+    pub actions: Vec<Action>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Copy, Clone)]

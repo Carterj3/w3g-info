@@ -3,7 +3,6 @@
 members = [
   "w3g-router-ms",
   "w3g-downloader-ms",
-  "w3g-parser-ms",
   "w3g-lobby-ms",
   "w3g-stats-ms",
   "w3g-rating-ms",

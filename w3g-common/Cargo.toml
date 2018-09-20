@@ -46,3 +46,6 @@ env_logger = "0.5.13"   # MIT/Apache-2.0
 reqwest = "0.8.8"       # MIT/Apache-2.0
 select = "0.4.2"        # MIT
  
+rocket = "0.3.16"           # MIT/Apache-2.0
+rocket_codegen = "0.3.16"   # MIT/Apache-2.0
+rocket_contrib = "0.3.16"   # MIT/Apache-2.0
