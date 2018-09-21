@@ -287,7 +287,7 @@ fn main() {
         .expect("Kafka not initialized yet");
 
     // Bulk Stats Requests
-    let collection = database.collection(&collection_name);
+    let collection = database.collection(&mongo_collecion);
    
     let producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();
@@ -299,7 +299,7 @@ fn main() {
     });
 
     // Stats Updates
-    let collection = database.collection(&collection_name);
+    let collection = database.collection(&mongo_collecion);
 
     let consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_UPDATES_TOPIC, KAFKA_GROUP)
         .unwrap();

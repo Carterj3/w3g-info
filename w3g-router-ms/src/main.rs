@@ -10,6 +10,10 @@ extern crate env_logger;
 
 use env_logger::{Builder, Target};
 
+extern crate chrono;
+
+use chrono::Utc;
+
 extern crate rocket; 
 extern crate rocket_contrib;
 
@@ -103,8 +107,15 @@ fn lobby( map: String
     producer.send_to_topic(ID_LOBBY_REQUESTS_TOPIC, key, "")?;
 
     trace!("Waiting for lobby response for key: {:?}", key);
+    let timeout_time = Utc::now().timestamp() + 5;  
+
     while !common.stats_map.contains_key(&key)
     {
+        if Utc::now().timestamp() > timeout_time
+        {
+            bail!("Timed out");
+        }
+
         thread::yield_now();
     }
 

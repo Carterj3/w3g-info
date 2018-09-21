@@ -1,7 +1,3 @@
-#![feature(plugin, decl_macro, custom_derive)]
-#![plugin(rocket_codegen)]
-
-#[macro_use]
 extern crate error_chain;
 
 #[macro_use]
@@ -9,13 +5,6 @@ extern crate log;
 extern crate env_logger;
 
 use env_logger::{Builder, Target};
-
-extern crate rocket; 
-extern crate rocket_contrib;
-
-use rocket::State;
-
-use rocket_contrib::Json; 
 
 extern crate mongodb;
 #[macro_use] extern crate bson;
@@ -58,14 +47,8 @@ use std::thread;
 use std::fs::File;
 use std::cmp::{min, max};
 use std::time::Duration;
-use std::io::Cursor;
-
-use std::collections::HashSet;
-use std::collections::HashMap;
-use w3g_common::pubsub::IdGameResult;
-use w3g_common::pubsub::IdTeam;
-use w3g_common::pubsub::ID_STATS_UPDATES_TOPIC;
-use w3g_common::parser::{ReplayBlock, Action};
+use std::io::{Write, Cursor};
+use std::path::PathBuf;
 
 const KAFKA_GROUP: &'static str = "w3g-lobby-ms";
 
@@ -124,12 +107,25 @@ impl GameIdDto
  }
 
 /// game_id -> Vec<Player>, replay_url
- fn get_game(game_id: i64) -> Result<(Vec<Player>, Replay)>
+ fn get_game(replay_path: &Option<PathBuf>, game_id: i64) -> Result<(Vec<Player>, Replay)>
  {
     let game_url = format!("https://entgaming.net/customstats/islanddefense/game/{}/", game_id);
     let mut games_response = reqwest::get(&game_url)?;
 
-    let games_text = games_response.text()?;
+    let mut games_bytes: Vec<u8> = Vec::new();
+    games_response.copy_to(&mut games_bytes)?;
+
+    if let Some(replay_path) = replay_path {
+        let mut path = replay_path.clone();
+        path.push(format!("{}.html", game_id));
+
+        trace!("Saving html to path: {:?}", path);
+        let mut file = File::create(path)?;
+        file.write_all(&games_bytes)?;
+        file.sync_all()?
+    }
+ 
+    let games_cursor = Cursor::new(games_bytes);
 
     let selector = And(Name("tr"), Class("GameRow"));
     lazy_static! {
@@ -138,7 +134,7 @@ impl GameIdDto
  
     let mut players = Vec::new();
 
-    let games_dom = HtmlDocument::from(games_text.as_str());
+    let games_dom = HtmlDocument::from_read(games_cursor)?;
     for tr in games_dom.find(selector)
     {
         let mut tds = tr.find(Name("td"));
@@ -162,6 +158,16 @@ impl GameIdDto
     /* Need to use .copy_to() as .text() has incorect length and bad bytes */
     let mut replay_bytes: Vec<u8> = Vec::new();
     replay_response.copy_to(&mut replay_bytes)?;
+
+    if let Some(replay_path) = replay_path {
+        let mut path = replay_path.clone();
+        path.push(format!("{}.w3g", game_id));
+
+        trace!("Saving w3g to path: {:?}", path);
+        let mut file = File::create(path)?;
+        file.write_all(&replay_bytes)?;
+        file.sync_all()?
+    }
  
     let mut replay_cursor = Cursor::new(replay_bytes);
     Ok((players, w3g_common::parser::parse_replay(&mut replay_cursor)?))
@@ -244,7 +250,7 @@ fn find_minimum_game_id(collection: &Collection) -> Result<i64>
     }
 }
 
-fn download_replays(mut producer: PubSubProducer, collection: Collection)
+fn download_replays(replay_path: &Option<PathBuf>, mut producer: PubSubProducer, collection: Collection)
 {
     let mut min_game_id = find_minimum_game_id(&collection)
         .unwrap();
@@ -274,7 +280,7 @@ fn download_replays(mut producer: PubSubProducer, collection: Collection)
                     min_game_id = min(min_game_id, game_id);
                     max_game_id = max(max_game_id, game_id);
 
-                    match get_game(game_id)
+                    match get_game(replay_path, game_id)
                     {
                         Ok((players, replay)) =>
                         {
@@ -335,6 +341,16 @@ fn main() {
         .unwrap();
     let database = client.db(&mongo_db);
 
+    let replay_path = env::var("REPLAY_PATH")
+                        .map(|path| PathBuf::from(path))
+                        .ok();
+
+    if let Some(replay_path) = &replay_path
+    {
+        std::fs::create_dir_all(replay_path.clone())
+            .unwrap();
+    }
+
     // TODO: Create index on replays for `game_id`
     let collection = database.collection(&mongo_collecion); 
 
@@ -347,11 +363,11 @@ fn main() {
     w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
         .expect("Kafka not initialized yet");
 
-    let mut producer = PubSubProducer::new(broker_uris.clone())
+    let producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();
 
      let download_replays_thread = thread::spawn(move || {
-        download_replays(producer, collection);
+        download_replays(&replay_path, producer, collection);
     });
 
     let _ = download_replays_thread.join();

@@ -39,7 +39,7 @@ pub fn perform_loopback_test<S>(broker_uris: &Vec<String>, group: S) -> Result<(
         .unwrap();
 
     producer.send_to_topic(W3G_LOOPBACK_TOPIC, 1337, "Hello World")?;
-    let responses: Vec<(u64, String)> = consumer.listen()?;
+    let _: Vec<(u64, String)> = consumer.listen()?;
 
     Ok(())
 }

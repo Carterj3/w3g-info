@@ -5,17 +5,15 @@ services:
     restart: always
     environment:
       LOG4J_ROOTLOGGER: ERROR, stdout
-    networks:
-      - w3g
+    ports:
+      - "2181:2181" 
   kafka:
     image: wurstmeister/kafka
     restart: always
     depends_on:
       - zookeeper
-    networks:
-      - w3g
     environment:
-      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_HOST_NAME: localhost
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_MESSAGE_MAX_BYTES: 20000000
       KAFKA_CREATE_TOPICS_SEPARATOR: "$$'\n'"
@@ -27,91 +25,15 @@ services:
         id-lobby-requests:1:1:delete --config=compression.type=snappy
         id-replays-responses:1:1:delete --config=compression.type=snappy
       LOG4J_ROOTLOGGER: ERROR, stdout
+    ports:
+      - "9092:9092" 
   mongodb:
     image: mongo
     restart: always
     environment:
-      MONGO_DATA_DIR: /data/db
+      MONGO_DATA_DIR: /tmp/db
       MONGO_LOG_DIR: /dev/null
     volumes:
         - /tmp/db:/data/db
-    networks:
-      - w3g
-  w3g-router-ms:
-    image: lesuorac/w3g-all
-    command: "/app/target/release/w3g-router-ms"
-    restart: always
-    depends_on:
-      - kafka
-    environment:
-      ROCKET_ENV: production
-      #RUST_LOG: error
-      RUST_LOG: w3g_common=error,w3g_router_ms=debug
-      KAFKA_URIS: kafka:9092
     ports:
-      - "8080:80" 
-    networks:
-      - w3g
-  w3g-stats-ms:
-    image: lesuorac/w3g-all
-    command: "/app/target/release/w3g-stats-ms"
-    restart: always
-    depends_on:
-      - kafka
-      - mongodb  
-    environment: 
-      #RUST_LOG: error
-      RUST_LOG: w3g_common=error,w3g_stats_ms=debug
-      KAFKA_URIS: kafka:9092
-      MONGO_HOST: mongodb
-      MONGO_PORT: 27017
-      MONGO_DB: islandDefense
-      MONGO_COLLECTION: playerStats
-    networks:
-      - w3g
-  w3g-lobby-ms:
-    image: lesuorac/w3g-all
-    command: "/app/target/release/w3g-lobby-ms"
-    restart: always
-    depends_on:
-      - kafka  
-    environment: 
-      #RUST_LOG: error
-      RUST_LOG: w3g_common=error,w3g_lobby_ms=debug
-      KAFKA_URIS: kafka:9092
-    networks:
-      - w3g
-  w3g-downloader-ms:
-    image: lesuorac/w3g-all
-    command: "/app/target/release/w3g-downloader-ms"
-    restart: always
-    depends_on:
-      - kafka
-      - mongodb  
-    environment: 
-      #RUST_LOG: error
-      RUST_LOG: w3g_common=error,w3g_downloader_ms=debug
-      KAFKA_URIS: kafka:9092
-      MONGO_HOST: mongodb
-      MONGO_PORT: 27017
-      MONGO_DB: islandDefense
-      MONGO_COLLECTION: replays
-    networks:
-      - w3g
-  w3g-rating-ms:
-    image: lesuorac/w3g-all
-    command: "/app/target/release/w3g-rating-ms"
-    restart: always
-    depends_on:
-      - kafka
-      - w3g-downloader-ms
-    environment: 
-      #RUST_LOG: error
-      RUST_LOG: w3g_common=error,w3g_rating_ms=info
-      KAFKA_URIS: kafka:9092
-    networks:
-      - w3g
-
-networks:
-  w3g:
-    driver: bridge
+        - "27017:27017" 

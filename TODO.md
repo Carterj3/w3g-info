@@ -1,7 +1,7 @@
 
 # w3g-stats-ms
 - Composite-index on `player.name`+`player.realm`
-- bulk lookup of players shouldn't be O(n) database access
+- bulk lookup of players[n] shouldn't be O(n) database access
 - stats is relational data and so should be relationally stored
 
 # w3g-lobby-ms
@@ -13,10 +13,6 @@
 # w3g-router-ms
 - Should really be async w.r.t. PubSub. Only need 1 thread listening for new HTTP and creating a PubSub request and thread pool looking to close HTTP when PubSub response comes in.
 - timeouts when a stats request takes too long ( https://github.com/alexcrichton/futures-timer )
-
-# Docker
-- Maybe remove `build .` from docker-compose.yml since it seems to cause the image to be made like 5 times. Also probably need to target an image instead when deployed to a server since kinda dumb to scp&build source code.
-- Need build script then though. Stop+Delete containers, rebuild image, delete untagged images, and run docker-compose.yml
 
 # General
 - rustdoc
