@@ -8,7 +8,7 @@ use env_logger::{Builder, Target};
 extern crate error_chain;
 
 extern crate mongodb;
-#[macro_use] extern crate bson;
+extern crate bson;
 
 use mongodb::coll::Collection;
 use mongodb::coll::results::UpdateResult;
@@ -16,13 +16,17 @@ use mongodb::coll::options::UpdateOptions;
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase; 
 
-use bson::Bson::Document;
+use bson::{Bson, Document};
 
 extern crate bbt; 
 use bbt::Rater;
 
+extern crate regex;
+
 extern crate w3g_common; 
  
+use w3g_common::api::island_defense;
+
 use w3g_common::pubsub::PubSubConsumer;
 
 use w3g_common::pubsub::PubSubProducer;
@@ -42,25 +46,35 @@ use std::env;
 
 const KAFKA_GROUP: &'static str = "id-stats-ms";
 
-fn find_player_stats(player: Player, collection: &Collection) -> IdStats
+fn create_case_insensitive_filter(player: &Player) -> Document
 {
-    let filter = doc!{
-        "player.name" => player.name.clone(),
-        "player.realm" => player.realm.clone(),
-    };
+    let mut filter = Document::new();
+    filter.insert("player.name", Bson::RegExp(format!("^{}$", regex::escape(&player.name)), "i".to_string()));
+    filter.insert("player.realm", Bson::String(player.realm.clone()));
+
+    filter
+}
+
+fn find_player_stats(player: &Player, collection: &Collection) -> IdStats
+{
+    let filter = create_case_insensitive_filter(player);
 
     match collection.find_one(Some(filter), None)
     { 
         Ok(Some(stats)) =>
         {
-            match bson::from_bson(Document(stats))
+            match bson::from_bson(Bson::Document(stats))
             {
                 Ok(stats) => stats,
-                Err(_) => IdStats::default(player),
+                Err(_) => IdStats::default(player.clone()),
             }
         },
-        Ok(None) => IdStats::default(player),
-        Err(_) => IdStats::default(player),
+        Ok(None) => IdStats::default(player.clone()),
+        Err(error) => 
+        {
+            error!("Failed to find player: {:?} because {}", player, error);
+            IdStats::default(player.clone())
+        },
     }
 }
 
@@ -68,11 +82,9 @@ fn update_player_stats(stats: &IdStats, collection: &Collection) -> Result<Updat
 {
     match bson::to_bson(stats)?
     {
-        Document(document) => {
-            let filter = doc!{
-                "player.name" => stats.player.name.clone(),
-                "player.realm" => stats.player.realm.clone(),
-            };
+        Bson::Document(document) => {
+            let filter = create_case_insensitive_filter(&stats.player);
+
             let mut options = UpdateOptions::new();
             options.upsert = Some(true);
 
@@ -95,11 +107,11 @@ fn update_ratings(builders: &Vec<IdStats>, titans: &Vec<IdStats>, outcome: &IdTe
     {
         builder_ratings.push(builders.get(i % builders.len())
             .ok_or(format!("Bad index: {} of {}", i, builders.len()))?
-            .rating
+            .builder_stats.rating
             .clone());
         titan_ratings.push(titans.get(i % titans.len())
             .ok_or(format!("Bad index: {} of {}", i, titans.len()))?
-            .rating
+            .titan_stats.rating
             .clone());
     }
 
@@ -153,11 +165,11 @@ fn stats_update_handler(mut consumer: PubSubConsumer, collection: Collection)
 
             for builder in result.builders
             {
-                builder_stats.push(find_player_stats(builder, &collection));
+                builder_stats.push(find_player_stats(&builder, &collection));
             }
             for titan in result.titans
             {
-                titan_stats.push(find_player_stats(titan, &collection));
+                titan_stats.push(find_player_stats(&titan, &collection));
             }
 
             let builder_stats_len = builder_stats.len();
@@ -172,7 +184,7 @@ fn stats_update_handler(mut consumer: PubSubConsumer, collection: Collection)
                         {
                             (Some(stats), Some(new_rating)) =>
                             {
-                                stats.rating = new_rating.clone();
+                                stats.builder_stats.rating = new_rating.clone();
                                 stats.builder_stats.wins += builder_wins;
                                 stats.builder_stats.losses += builder_losses;
                                 stats.builder_stats.ties += builder_ties;
@@ -194,7 +206,7 @@ fn stats_update_handler(mut consumer: PubSubConsumer, collection: Collection)
                         {
                             (Some(stats), Some(new_rating)) =>
                             {
-                                stats.rating = new_rating.clone();
+                                stats.titan_stats.rating = new_rating.clone();
                                 stats.titan_stats.wins += titan_wins;
                                 stats.titan_stats.losses += titan_losses;
                                 stats.titan_stats.ties += titan_ties;
@@ -212,6 +224,91 @@ fn stats_update_handler(mut consumer: PubSubConsumer, collection: Collection)
             }
         }
     }
+}
+
+
+fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) -> Result<island_defense::Lobby>
+{
+    let mut builder_stats = HashMap::with_capacity(players.len());
+    let mut builder_bbts = HashMap::with_capacity(players.len());
+    let mut titan_stats = HashMap::with_capacity(1);
+    let mut titan_bbts = HashMap::with_capacity(1);
+
+    for slot in 0..10
+    {
+        if let Some(player) = players.get(&slot)
+        {
+            let stat = find_player_stats(player, collection);
+            builder_bbts.insert(slot, stat.builder_stats.rating.clone()); 
+            builder_stats.insert(slot, stat);
+        }
+    }
+
+    for slot in 10..11
+    {
+        if let Some(player) = players.get(&slot)
+        {
+            let stat = find_player_stats(player, collection); 
+            titan_bbts.insert(slot, stat.titan_stats.rating.clone());
+            titan_stats.insert(slot, stat);
+        }
+    }
+
+    let ((builder_win_builder_ratings, builder_win_titan_ratings), (titan_win_builder_ratings, titan_win_titan_ratings)) = w3g_common::rating::compute_potential_ratings(&builder_bbts, &titan_bbts)?;
+    
+    error!("{:?}", w3g_common::rating::compute_potential_ratings(&builder_bbts, &titan_bbts)?);
+
+    let num_builders = builder_stats.len();
+    let num_titans = titan_stats.len();
+
+    let mut builders: Vec<island_defense::Builder> = Vec::with_capacity(num_builders);
+    let mut titans: Vec<island_defense::Titan> = Vec::with_capacity(num_titans);
+
+    let mut builders_rating = island_defense::Rating::new(0.0, 0.0, 0.0);
+    let mut titans_rating = island_defense::Rating::new(0.0, 0.0, 0.0);
+
+    
+
+    for (slot, stat) in builder_stats.into_iter()
+    {
+        match ( builder_win_builder_ratings.get(&slot), titan_win_builder_ratings.get(&slot))
+        {
+            ( Some(win_rating), Some(loss_rating) ) =>
+            {   
+                let rating = stat.builder_stats.rating.mu();
+                let rating = island_defense::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
+
+                builders_rating.mean_rating += rating.mean_rating / (num_builders as f64);
+                builders_rating.potential_gain += rating.potential_gain / (num_builders as f64);
+                builders_rating.potential_loss += rating.potential_loss / (num_builders as f64);
+
+                builders.push(island_defense::Builder::new(slot, stat.player.name, stat.player.realm, rating, stat.builder_stats.wins, stat.builder_stats.losses, stat.builder_stats.ties));
+            },
+            _ => bail!("Builder slot: {} did not have ratings computed", slot),
+        };
+    } 
+
+    for (slot, stat) in titan_stats.into_iter()
+    {
+        match ( titan_win_titan_ratings.get(&slot), builder_win_titan_ratings.get(&slot))
+        {
+            ( Some(win_rating), Some(loss_rating) ) =>
+            {   
+                let rating = stat.titan_stats.rating.mu();
+                let rating = island_defense::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
+
+                titans_rating.mean_rating += rating.mean_rating / (num_builders as f64);
+                titans_rating.potential_gain += rating.potential_gain / (num_builders as f64);
+                titans_rating.potential_loss += rating.potential_loss / (num_builders as f64);
+
+                titans.push(island_defense::Titan::new(slot, stat.player.name, stat.player.realm, rating, stat.titan_stats.wins, stat.titan_stats.losses, stat.titan_stats.ties));
+            },
+            _ => bail!("Titan slot: {} did not have ratings computed", slot),
+        };
+    } 
+
+
+    Ok(island_defense::Lobby::new(island_defense::BuilderTeam::new(builders, builders_rating), island_defense::TitanTeam::new(titans, titans_rating)))
 }
 
 fn stats_bulk_request_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer, collection: Collection)
@@ -235,20 +332,23 @@ fn stats_bulk_request_handler(mut consumer: PubSubConsumer, mut producer: PubSub
 
         for (key, lobby) in lobbies
         {
-            let mut lobby_stats = HashMap::new();
-            for (slot, player) in lobby
+            match convert_map_to_lobby(&lobby, &collection)
             {
-                lobby_stats.insert(slot, find_player_stats(player, &collection));
-            }
-
-            match producer.send_to_topic(ID_BULK_STATS_RESPONSES_TOPIC, key, lobby_stats)
-            {
-                Err(_) => error!("Error?"),
-                _ => (),
-            }
+                Err(error) => error!("Unable to convert lobby: {:?}, {}", lobby, error),
+                Ok(lobby_stats) => 
+                {
+                    match producer.send_to_topic(ID_BULK_STATS_RESPONSES_TOPIC, key, lobby_stats)
+                {
+                    Err(error) => error!("Unable to send lobby stats: {}", error),
+                    _ => (),
+                }
+                }
+            } 
         }
     }
 }
+
+
 
 fn main() {
     let mut builder = Builder::new();

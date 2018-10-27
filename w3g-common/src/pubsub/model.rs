@@ -49,7 +49,6 @@ impl IdGameResult
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct IdStats {
     pub player: Player,
-    pub rating: Rating,
     pub builder_stats: BuilderStats,
     pub titan_stats: TitanStats,
 }
@@ -60,7 +59,6 @@ impl IdStats
     {
         IdStats {
             player,
-            rating: Rating::new(1500.0, 1500.0 / 3.0),
             builder_stats: BuilderStats::default(),
             titan_stats: TitanStats::default(),
         }
@@ -70,6 +68,7 @@ impl IdStats
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct BuilderStats
 {
+    pub rating: Rating,
     pub wins: i32,
     pub losses: i32,
     pub ties: i32,
@@ -80,6 +79,7 @@ impl BuilderStats
     pub fn default() -> BuilderStats
     {
         BuilderStats {
+            rating: Rating::new(1500.0, 1500.0 / 3.0),
             wins: 0,
             losses: 0,
             ties: 0,
@@ -90,6 +90,7 @@ impl BuilderStats
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TitanStats
 {
+    pub rating: Rating,
     pub wins: i32,
     pub losses: i32,
     pub ties: i32,
@@ -100,6 +101,7 @@ impl TitanStats
     pub fn default() -> TitanStats
     {
         TitanStats {
+            rating: Rating::new(1500.0, 1500.0 / 3.0),
             wins: 0,
             losses: 0,
             ties: 0,

@@ -131,3 +131,8 @@ w3g-stats-ms gets the PubSub W/L and updates the stats for those players
 
 ## Delete all containers
 `docker rm $(docker ps -aq)`
+
+# Testing
+
+## Performance
+`ab -n 10000 -c 10 https://api.islanddefense.info/v1/lobby/test`

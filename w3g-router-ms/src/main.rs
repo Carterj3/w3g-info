@@ -21,9 +21,10 @@ use rocket::State;
 
 use rocket_contrib::Json; 
 
-extern crate chashmap;
+extern crate triple_buffer;
 
-use chashmap::CHashMap;
+use triple_buffer::{TripleBuffer, Output, Input};
+
 
 extern crate w3g_common;
 
@@ -31,14 +32,15 @@ use w3g_common::errors::Result;
 
 use w3g_common::pubsub::PubSubProducer;
 use w3g_common::pubsub::PubSubConsumer;
-use w3g_common::pubsub::model::IdStats; 
+use w3g_common::pubsub::model::{IdGameResult, Player, IdTeam}; 
 use w3g_common::pubsub::W3G_LOOPBACK_TOPIC;
-use w3g_common::pubsub::ID_BULK_STATS_RESPONSES_TOPIC;
-use w3g_common::pubsub::ID_LOBBY_REQUESTS_TOPIC;
+use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC, ID_LOBBY_REQUESTS_TOPIC, ID_STATS_UPDATES_TOPIC};
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex}; 
+use w3g_common::api::island_defense;
+
+use std::sync::Mutex; 
 use std::thread;
+use std::time::Duration;
 use std::collections::HashMap;
 use std::env;
 
@@ -46,9 +48,7 @@ const KAFKA_GROUP: &'static str = "w3g-router-ms";
 
 struct RustRouterConfig 
 {
-    pubsub_key: Arc<AtomicU64>,
-    pubsub_producer: Arc<Mutex<PubSubProducer>>,
-    stats_map: Arc<CHashMap<u64, HashMap<u8, IdStats>>>,
+    id_lobby: Mutex<Output<island_defense::Lobby>>,
 }
 
 #[get("/")]
@@ -71,6 +71,47 @@ fn index() -> Result<Json<Vec<(u64, String)>>> {
     Ok(Json(responses))
 }
 
+#[get("/ratings")]
+fn ratings_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::Lobby>>
+{
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
+    let mut producer = PubSubProducer::new(broker_uris.clone())
+        .unwrap();
+
+    let game1 = IdGameResult::new(  vec![Player::new("Builder1", "Test"), Player::new("Builder2", "Test")]
+                                 ,  vec![Player::new("Titan1", "Test")]
+                                 ,  IdTeam::Titan);
+    let game2 = IdGameResult::new(  vec![Player::new("builder1", "Test"), Player::new("builder2", "Test")]
+                                 ,  vec![Player::new("titan1", "Test")]
+                                 ,  IdTeam::Builder);
+
+    producer.send_to_topic(ID_STATS_UPDATES_TOPIC, Utc::now().timestamp_nanos() as u64, game1)?;
+    producer.send_to_topic(ID_STATS_UPDATES_TOPIC, Utc::now().timestamp_nanos() as u64, game2)?;
+
+    thread::sleep(Duration::from_millis(25));
+
+    let mut lobby = HashMap::new();
+    lobby.insert(0, Player::new("Builder1", "Test"));
+    lobby.insert(1, Player::new("builder2", "Test"));
+    lobby.insert(2, Player::new("titan1", "Test"));
+    lobby.insert(3, Player::new("Titan1", "Test"));
+
+    producer.send_to_topic(ID_BULK_STATS_REQUESTS_TOPIC, Utc::now().timestamp_nanos() as u64, lobby)?;
+
+    thread::sleep(Duration::from_millis(50));
+
+    match common.id_lobby.lock()
+    {
+        Ok(mut id_lobby) => Ok(Json(id_lobby.read().clone())),
+        Err(error) => bail!("Failed to acquire lock because {}", error),
+    }
+    
+}
+
 #[get("/log")]
 fn log_test() -> &'static str {
 
@@ -85,50 +126,33 @@ fn log_test() -> &'static str {
 
 ///
 /// Gets the stats of all the players in the current lobby for the given MapType
-///
-/// * `map` - the name of the map (i.e. Island Defense)
+/// 
 /// * `common` - the stored common configuration needed to do anything (i.e kafka parameters)
-#[get("/lobby/<map>")]
-fn lobby( map: String
-        , common: State<RustRouterConfig>) -> Result<Json<HashMap<u8, IdStats>>>
-{
-    if map.is_empty()
+#[get("/lobby/island-defense")]
+fn lobby_island_defense(common: State<RustRouterConfig>) -> Result<Json<island_defense::Lobby>>
+{ 
+    match common.id_lobby.lock()
     {
-        bail!("<map> not specified");
+        Ok(mut id_lobby) => Ok(Json(id_lobby.read().clone())),
+        Err(error) => bail!("Failed to acquire lock because {}", error),
     }
-
-    let mut producer = match common.pubsub_producer.lock()
-    {
-        Ok(producer) => producer,
-        Err(_) => bail!("Poisioned"),
-    };
-    let key = common.pubsub_key.fetch_add(1, Ordering::SeqCst);
-
-    producer.send_to_topic(ID_LOBBY_REQUESTS_TOPIC, key, "")?;
-
-    trace!("Waiting for lobby response for key: {:?}", key);
-    let timeout_time = Utc::now().timestamp() + 5;  
-
-    while !common.stats_map.contains_key(&key)
-    {
-        if Utc::now().timestamp() > timeout_time
-        {
-            bail!("Timed out");
-        }
-
-        thread::yield_now();
-    }
-
-    let lobby = common.stats_map.remove(&key)
-        .ok_or("Lobby data was empty")?;
-
-    Ok(Json(lobby))
 }
 
-fn bulk_stats_handler(mut consumer: PubSubConsumer, stats_map: Arc<CHashMap<u64, HashMap<u8, IdStats>>>)
+fn id_lobby_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, mut buffer_input: Input<island_defense::Lobby>)
 {
+    let mut expiration_time = Utc::now().timestamp();
+
     loop {
-        let bulk_stats: Vec<(u64, HashMap<u8, IdStats>)> = match consumer.listen()
+        let current_time = Utc::now().timestamp();
+        if current_time > expiration_time
+        {
+            if let Ok(_) = producer.send_to_topic(ID_LOBBY_REQUESTS_TOPIC, 0, "")
+            {
+                expiration_time = current_time + 5;
+            }
+        }
+
+        let bulk_stats: Vec<(u64, island_defense::Lobby)> = match consumer.listen()
         {
             Err(_) =>
             {
@@ -141,13 +165,14 @@ fn bulk_stats_handler(mut consumer: PubSubConsumer, stats_map: Arc<CHashMap<u64,
         if bulk_stats.is_empty()
         {
             thread::yield_now();
+            continue;
         }
 
         for (key, bulk_stat) in bulk_stats
         { 
             trace!("Received lobby response for key: {:?} = {:?}", key, bulk_stat);
 
-            stats_map.insert(key, bulk_stat);
+            buffer_input.write(bulk_stat);
         }
     }
 }
@@ -170,29 +195,24 @@ fn main() {
 
     let producer = PubSubProducer::new(broker_uris.clone())
              .unwrap();
-    let producer = Arc::new(Mutex::new(producer));
-
-    let key = Arc::new(AtomicU64::new(0));
-    let map = Arc::new(CHashMap::new());
-
-    let router_config = RustRouterConfig {
-        pubsub_key: key,
-        pubsub_producer: producer,
-        stats_map: Arc::clone(&map),
-    };
-  
-
     let consumer = PubSubConsumer::new(broker_uris.clone(), ID_BULK_STATS_RESPONSES_TOPIC, KAFKA_GROUP)
         .unwrap();
 
-     let bulk_responses_thread = thread::spawn(move || {
-        bulk_stats_handler(consumer, Arc::clone(&map));
+    let empty_lobby = island_defense::Lobby::new(island_defense::BuilderTeam::new(Vec::new(), island_defense::Rating::new(0.0, 0.0, 0.0)), island_defense::TitanTeam::new(Vec::new(), island_defense::Rating::new(0.0, 0.0, 0.0)));
+    let (buffer_input, buffer_output) = TripleBuffer::new(empty_lobby).split();
+
+    let router_config = RustRouterConfig {
+        id_lobby: Mutex::new(buffer_output),
+    };
+
+     let id_lobby_updater_thread = thread::spawn(move || {
+        id_lobby_updater(consumer, producer, buffer_input);
     });
 
     rocket::ignite()
-        .mount("v1", routes![index, log_test, lobby])
+        .mount("v1", routes![index, log_test, ratings_test, lobby_island_defense])
         .manage(router_config)
         .launch();
 
-    let _ = bulk_responses_thread.join();
+    let _ = id_lobby_updater_thread.join();
 }

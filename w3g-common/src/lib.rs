@@ -7,6 +7,9 @@ extern crate error_chain;
 extern crate serde_derive;
 
 #[macro_use]
+extern crate derive_new;
+
+#[macro_use]
 extern crate log;
 
 extern crate rocket;
@@ -28,6 +31,8 @@ extern crate mongodb;
 
 pub mod parser;  
 pub mod pubsub;
+pub mod api;
+pub mod rating;
 
 /*
     Common error_chain for all of lib to use so the ? operator passes things around real well.

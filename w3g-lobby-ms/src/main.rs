@@ -7,10 +7,6 @@ extern crate env_logger;
 
 use env_logger::{Builder, Target};
 
-extern crate chrono;
-
-use chrono::Utc;
-
 extern crate reqwest; 
 extern crate select;
 
@@ -29,6 +25,8 @@ use w3g_common::pubsub::model::Player;
 
 use w3g_common::pubsub::ID_BULK_STATS_REQUESTS_TOPIC;
 use w3g_common::pubsub::ID_LOBBY_REQUESTS_TOPIC;
+
+use w3g_common::api::island_defense;
  
 use std::env;
 use std::collections::HashMap;
@@ -41,44 +39,27 @@ fn lobby_request_handler(mut consumer: PubSubConsumer, mut producer: PubSubProdu
 {
     let bot_id = "60";
 
-    let mut cached_players = get_players_for_bot(bot_id);
-    let mut expiration_time = Utc::now().timestamp() + 5;  
-
     loop
     {
         let requests: Vec<(u64, String)> = consumer.listen()
             .unwrap();
 
-        for (key, _) in requests
+        for (key, _)  in requests
         {
             trace!("Received lobby request for key: {:?}", key);
 
-            let current_time = Utc::now();
-            if current_time.timestamp() > expiration_time
+            match get_players_for_bot(bot_id)
             {
-                cached_players = match get_players_for_bot(bot_id)
+                Ok(players) =>
                 {
-                    Ok(players) =>
-                    {
-                        expiration_time = current_time.timestamp() + 5;
-                        Ok(players)
-                    },
-                    Err(_) =>
-                    {
-                        expiration_time = current_time.timestamp() + 2;
-                        error!("Failed to update cache");
-                        continue;
-                    }
-                };
-            }
 
-            if let Ok(players) = &cached_players
-            {
-                if let Err(_) = producer.send_to_topic(ID_BULK_STATS_REQUESTS_TOPIC, key, players)
-                {
-                    error!("failed to respond to lobby request");
-                }
-            }
+                    if let Err(error) = producer.send_to_topic(ID_BULK_STATS_REQUESTS_TOPIC, key, players)
+                    {
+                        error!("Failed to response to lobby request because: {}", error);
+                    }
+                },
+                Err(error) => error!("Failed to get players from Ent because: {}", error),
+            }; 
         }
     }
 }
@@ -186,10 +167,26 @@ fn get_players_for_bot(bot_id: &str) -> Result<HashMap<u8, Player>>
             }
         };
 
-        let realm = match slots.next()
+        let realm = match slots.next().map(|realm| realm.text())
         {
             None => continue,
-            Some(realm) => realm.text(),
+            Some(realm) =>
+            {
+                match realm.as_str()
+                {
+                    /* db.playerStats.distinct("player.realm") */
+                    "USEast" => "useast.battle.net".to_string(),
+                    "USWest" => "uswest.battle.net".to_string(),
+                    "Europe" => "europe.battle.net".to_string(),
+                    "Asia" => "asia.battle.net".to_string(),
+                    "entconnect" => "entconnect".to_string(),
+                    _ =>
+                    {
+                        warn!("Found unknown realm: {} will likely cause errors for stats lookup", realm);
+                        realm
+                    },
+                }
+            },
         };
 
         // let ping = slots.next();
