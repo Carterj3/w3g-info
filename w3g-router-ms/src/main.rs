@@ -34,7 +34,7 @@ use w3g_common::pubsub::PubSubProducer;
 use w3g_common::pubsub::PubSubConsumer;
 use w3g_common::pubsub::model::{IdGameResult, Player, IdTeam}; 
 use w3g_common::pubsub::W3G_LOOPBACK_TOPIC;
-use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC, ID_LOBBY_REQUESTS_TOPIC, ID_STATS_UPDATES_TOPIC};
+use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC, ID_LOBBY_REQUESTS_TOPIC, ID_STATS_UPDATES_TOPIC, ID_STATS_LEADERBOARD_REQUEST_TOPIC, ID_STATS_LEADERBOARD_RESPONSE_TOPIC};
 
 use w3g_common::api::island_defense;
 
@@ -48,7 +48,8 @@ const KAFKA_GROUP: &'static str = "w3g-router-ms";
 
 struct RustRouterConfig 
 {
-    id_lobby: Mutex<Output<island_defense::Lobby>>,
+    id_lobby: Mutex<Output<island_defense::lobby::Lobby>>,
+    id_leader_board: Mutex<Output<island_defense::leaderboard::LeaderBoard>>,
 }
 
 #[get("/")]
@@ -71,8 +72,30 @@ fn index() -> Result<Json<Vec<(u64, String)>>> {
     Ok(Json(responses))
 }
 
+#[get("/leaderBoard")]
+fn leader_board_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::leaderboard::LeaderBoard>>
+{
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
+    let mut producer = PubSubProducer::new(broker_uris.clone())
+        .unwrap();
+
+    producer.send_to_topic(ID_STATS_LEADERBOARD_REQUEST_TOPIC, Utc::now().timestamp_nanos() as u64, 10i64)?;
+
+    thread::sleep(Duration::from_millis(50));
+
+    match common.id_leader_board.lock()
+    {
+        Ok(mut id_leader_board) => Ok(Json(id_leader_board.read().clone())),
+        Err(error) => bail!("Failed to acquire lock because {}", error),
+    }
+}
+
 #[get("/ratings")]
-fn ratings_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::Lobby>>
+fn ratings_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::lobby::Lobby>>
 {
     let broker_uris = match env::var("KAFKA_URIS")
     {
@@ -109,7 +132,6 @@ fn ratings_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::
         Ok(mut id_lobby) => Ok(Json(id_lobby.read().clone())),
         Err(error) => bail!("Failed to acquire lock because {}", error),
     }
-    
 }
 
 #[get("/log")]
@@ -125,11 +147,11 @@ fn log_test() -> &'static str {
 }
 
 ///
-/// Gets the stats of all the players in the current lobby for the given MapType
+/// Gets the stats of all the players in the current island defense lobby
 /// 
 /// * `common` - the stored common configuration needed to do anything (i.e kafka parameters)
 #[get("/lobby/island-defense")]
-fn lobby_island_defense(common: State<RustRouterConfig>) -> Result<Json<island_defense::Lobby>>
+fn lobby_island_defense(common: State<RustRouterConfig>) -> Result<Json<island_defense::lobby::Lobby>>
 { 
     match common.id_lobby.lock()
     {
@@ -138,7 +160,56 @@ fn lobby_island_defense(common: State<RustRouterConfig>) -> Result<Json<island_d
     }
 }
 
-fn id_lobby_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, mut buffer_input: Input<island_defense::Lobby>)
+#[get("/leaderBoard/island-defense")]
+fn leaderboard_island_defense(common: State<RustRouterConfig>) -> Result<Json<island_defense::leaderboard::LeaderBoard>>
+{ 
+    match common.id_leader_board.lock()
+    {
+        Ok(mut id_leader_board) => Ok(Json(id_leader_board.read().clone())),
+        Err(error) => bail!("Failed to acquire lock because {}", error),
+    }
+}
+
+fn id_leader_board_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, mut buffer_input: Input<island_defense::leaderboard::LeaderBoard>)
+{
+    let mut expiration_time = Utc::now().timestamp();
+
+    loop {
+        let current_time = Utc::now().timestamp();
+        if current_time > expiration_time
+        {
+            if let Ok(_) = producer.send_to_topic(ID_STATS_LEADERBOARD_REQUEST_TOPIC, 0, 10i64)
+            {
+                expiration_time = current_time + 5;
+            }
+        }
+
+        let leaderboards: Vec<(u64, island_defense::leaderboard::LeaderBoard)> = match consumer.listen()
+        {
+            Err(error) =>
+            {
+                error!("Failed to parse leaderboard: {}", error);
+                continue;
+            },
+            Ok(data) => data,
+        };
+
+        if leaderboards.is_empty()
+        {
+            thread::yield_now();
+            continue;
+        }
+
+        for (key, leaderboard) in leaderboards
+        { 
+            trace!("Received leaderboard response for key: {:?} = {:?}", key, leaderboard);
+
+            buffer_input.write(leaderboard);
+        }
+    }
+}
+
+fn id_lobby_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, mut buffer_input: Input<island_defense::lobby::Lobby>)
 {
     let mut expiration_time = Utc::now().timestamp();
 
@@ -152,7 +223,7 @@ fn id_lobby_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, 
             }
         }
 
-        let bulk_stats: Vec<(u64, island_defense::Lobby)> = match consumer.listen()
+        let bulk_stats: Vec<(u64, island_defense::lobby::Lobby)> = match consumer.listen()
         {
             Err(_) =>
             {
@@ -193,26 +264,44 @@ fn main() {
     w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
         .expect("Kafka not initialized yet");
 
+   
+
+    let empty_lobby = island_defense::lobby::Lobby::new(island_defense::lobby::BuilderTeam::new(Vec::new(), island_defense::lobby::Rating::new(0.0, 0.0, 0.0)), island_defense::lobby::TitanTeam::new(Vec::new(), island_defense::lobby::Rating::new(0.0, 0.0, 0.0)));
+    let (lobby_input, lobby_output) = TripleBuffer::new(empty_lobby).split();
+
+    let empty_leaderboard = island_defense::leaderboard::LeaderBoard::new(Vec::new(), Vec::new());
+    let (leader_board_input, leader_board_output) = TripleBuffer::new(empty_leaderboard).split();
+
+    let router_config = RustRouterConfig {
+        id_lobby: Mutex::new(lobby_output),
+        id_leader_board: Mutex::new(leader_board_output),
+    };
+
+    // Lobby
     let producer = PubSubProducer::new(broker_uris.clone())
              .unwrap();
     let consumer = PubSubConsumer::new(broker_uris.clone(), ID_BULK_STATS_RESPONSES_TOPIC, KAFKA_GROUP)
         .unwrap();
 
-    let empty_lobby = island_defense::Lobby::new(island_defense::BuilderTeam::new(Vec::new(), island_defense::Rating::new(0.0, 0.0, 0.0)), island_defense::TitanTeam::new(Vec::new(), island_defense::Rating::new(0.0, 0.0, 0.0)));
-    let (buffer_input, buffer_output) = TripleBuffer::new(empty_lobby).split();
+    let id_lobby_updater_thread = thread::spawn(move || {
+        id_lobby_updater(consumer, producer, lobby_input);
+    });
 
-    let router_config = RustRouterConfig {
-        id_lobby: Mutex::new(buffer_output),
-    };
+    // Leaderboard
+    let producer = PubSubProducer::new(broker_uris.clone())
+             .unwrap();
+    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_LEADERBOARD_RESPONSE_TOPIC, KAFKA_GROUP)
+        .unwrap();
 
-     let id_lobby_updater_thread = thread::spawn(move || {
-        id_lobby_updater(consumer, producer, buffer_input);
+    let id_leader_board_updater_thread = thread::spawn(move || {
+        id_leader_board_updater(consumer, producer, leader_board_input);
     });
 
     rocket::ignite()
-        .mount("v1", routes![index, log_test, ratings_test, lobby_island_defense])
+        .mount("v1", routes![index, log_test, ratings_test, leader_board_test, lobby_island_defense, leaderboard_island_defense])
         .manage(router_config)
         .launch();
 
     let _ = id_lobby_updater_thread.join();
+    let _ = id_leader_board_updater_thread.join();
 }

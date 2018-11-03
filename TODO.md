@@ -1,6 +1,4 @@
 # General
-- Mutal TLS (probably just do basic auth or something for now)
-- - https://medium.com/@itseranga/tls-mutual-authentication-with-golang-and-nginx-937f0da22a0e
 - debug-ms
 - - /health (what services are up, maybe Metrics per service)
 - - - Services + stats (mem / cpu per) maybe like kafka IO per service
@@ -30,6 +28,3 @@
 - rename most w3g to id since most services are id specific and adding dota/etc should? just be more services.
 - borrow a lot more often. Very little reason to use Strings are prolific as I have.
 - lib/main style to make testing possible
-
-- ssl certs
-https://www.humankode.com/ssl/how-to-set-up-free-ssl-certificates-from-lets-encrypt-using-docker-and-nginx

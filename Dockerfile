@@ -10,7 +10,7 @@ WORKDIR /app
 # Copy the current directory contents into the container at /app
 COPY . .
 
-# Build the app before finishing the Dockerfile so that it doesn't happen when the container starts
+# Build the app
 RUN rustc --version && cargo build --release
 
 # The command gets overridden by the docker-compose.yml so doesn't really matter that its wrong

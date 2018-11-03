@@ -43,6 +43,8 @@ services:
       KAFKA_CREATE_TOPICS_SEPARATOR: "$$'\n'"
       KAFKA_CREATE_TOPICS: |
         w3g-router-loopback:1:1:delete --config=compression.type=snappy
+        id-leaderboard-request:1:1:delete --config=compression.type=snappy
+        id-leaderboard-response:1:1:delete --config=compression.type=snappy
         id-bulk-stats-requests:1:1:delete --config=compression.type=snappy
         id-bulk-stats-responses:1:1:delete --config=compression.type=snappy
         id-stats-updates:1:1:delete --config=compression.type=snappy

@@ -146,6 +146,7 @@ impl GameIdDto
             {
                 if let (Some(name), Some(realm)) = (capture.name("name"), capture.name("realm"))
                 {
+                    // TODO: HTML Decode these strings ....
                     players.push(Player::new(String::from(name.as_str()), String::from(realm.as_str())));
                 }
             }

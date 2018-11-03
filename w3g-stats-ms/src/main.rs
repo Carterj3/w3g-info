@@ -12,7 +12,7 @@ extern crate bson;
 
 use mongodb::coll::Collection;
 use mongodb::coll::results::UpdateResult;
-use mongodb::coll::options::UpdateOptions;
+use mongodb::coll::options::{UpdateOptions, FindOptions};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase; 
 
@@ -36,7 +36,7 @@ use w3g_common::pubsub::model::IdStats;
 use w3g_common::pubsub::model::IdTeam;
 use w3g_common::pubsub::model::IdGameResult;
 
-use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_STATS_UPDATES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC};
+use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_STATS_UPDATES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC, ID_STATS_LEADERBOARD_REQUEST_TOPIC, ID_STATS_LEADERBOARD_RESPONSE_TOPIC};
 
 use w3g_common::errors::Result;
 
@@ -227,7 +227,7 @@ fn stats_update_handler(mut consumer: PubSubConsumer, collection: Collection)
 }
 
 
-fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) -> Result<island_defense::Lobby>
+fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) -> Result<island_defense::lobby::Lobby>
 {
     let mut builder_stats = HashMap::with_capacity(players.len());
     let mut builder_bbts = HashMap::with_capacity(players.len());
@@ -255,19 +255,15 @@ fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) 
     }
 
     let ((builder_win_builder_ratings, builder_win_titan_ratings), (titan_win_builder_ratings, titan_win_titan_ratings)) = w3g_common::rating::compute_potential_ratings(&builder_bbts, &titan_bbts)?;
-    
-    error!("{:?}", w3g_common::rating::compute_potential_ratings(&builder_bbts, &titan_bbts)?);
 
     let num_builders = builder_stats.len();
     let num_titans = titan_stats.len();
 
-    let mut builders: Vec<island_defense::Builder> = Vec::with_capacity(num_builders);
-    let mut titans: Vec<island_defense::Titan> = Vec::with_capacity(num_titans);
+    let mut builders: Vec<island_defense::lobby::Builder> = Vec::with_capacity(num_builders);
+    let mut titans: Vec<island_defense::lobby::Titan> = Vec::with_capacity(num_titans);
 
-    let mut builders_rating = island_defense::Rating::new(0.0, 0.0, 0.0);
-    let mut titans_rating = island_defense::Rating::new(0.0, 0.0, 0.0);
-
-    
+    let mut builders_rating = island_defense::lobby::Rating::new(0.0, 0.0, 0.0);
+    let mut titans_rating = island_defense::lobby::Rating::new(0.0, 0.0, 0.0);
 
     for (slot, stat) in builder_stats.into_iter()
     {
@@ -276,13 +272,13 @@ fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) 
             ( Some(win_rating), Some(loss_rating) ) =>
             {   
                 let rating = stat.builder_stats.rating.mu();
-                let rating = island_defense::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
+                let rating = island_defense::lobby::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
 
                 builders_rating.mean_rating += rating.mean_rating / (num_builders as f64);
                 builders_rating.potential_gain += rating.potential_gain / (num_builders as f64);
                 builders_rating.potential_loss += rating.potential_loss / (num_builders as f64);
 
-                builders.push(island_defense::Builder::new(slot, stat.player.name, stat.player.realm, rating, stat.builder_stats.wins, stat.builder_stats.losses, stat.builder_stats.ties));
+                builders.push(island_defense::lobby::Builder::new(slot, stat.player.name, stat.player.realm, rating, stat.builder_stats.wins, stat.builder_stats.losses, stat.builder_stats.ties));
             },
             _ => bail!("Builder slot: {} did not have ratings computed", slot),
         };
@@ -295,20 +291,20 @@ fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) 
             ( Some(win_rating), Some(loss_rating) ) =>
             {   
                 let rating = stat.titan_stats.rating.mu();
-                let rating = island_defense::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
+                let rating = island_defense::lobby::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
 
                 titans_rating.mean_rating += rating.mean_rating / (num_builders as f64);
                 titans_rating.potential_gain += rating.potential_gain / (num_builders as f64);
                 titans_rating.potential_loss += rating.potential_loss / (num_builders as f64);
 
-                titans.push(island_defense::Titan::new(slot, stat.player.name, stat.player.realm, rating, stat.titan_stats.wins, stat.titan_stats.losses, stat.titan_stats.ties));
+                titans.push(island_defense::lobby::Titan::new(slot, stat.player.name, stat.player.realm, rating, stat.titan_stats.wins, stat.titan_stats.losses, stat.titan_stats.ties));
             },
             _ => bail!("Titan slot: {} did not have ratings computed", slot),
         };
     } 
 
 
-    Ok(island_defense::Lobby::new(island_defense::BuilderTeam::new(builders, builders_rating), island_defense::TitanTeam::new(titans, titans_rating)))
+    Ok(island_defense::lobby::Lobby::new(island_defense::lobby::BuilderTeam::new(builders, builders_rating), island_defense::lobby::TitanTeam::new(titans, titans_rating)))
 }
 
 fn stats_bulk_request_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer, collection: Collection)
@@ -348,6 +344,94 @@ fn stats_bulk_request_handler(mut consumer: PubSubConsumer, mut producer: PubSub
     }
 }
 
+fn get_top_builders(size: i64, collection: &Collection) -> Result<Vec<island_defense::leaderboard::Builder>>
+{
+    let mut sort = Document::new();
+    sort.insert("builder_stats.rating.mu", Bson::I32(-1));
+
+    let mut options = FindOptions::new();
+    options.limit = Some(size);
+    options.sort = Some(sort);
+
+    let builders: Vec<island_defense::leaderboard::Builder> = collection.find(None, Some(options))?
+        .drain_current_batch()?
+        .into_iter()
+        .filter_map(|document| bson::from_bson(Bson::Document(document)).ok())
+        .take(size as usize)
+        .map(|stats: IdStats| island_defense::leaderboard::Builder::new(stats.player.name, stats.player.realm, stats.builder_stats.rating.mu(), stats.builder_stats.wins, stats.builder_stats.losses, stats.builder_stats.ties))
+        .collect();
+
+    Ok(builders)
+}
+
+fn get_top_titans(size: i64, collection: &Collection) -> Result<Vec<island_defense::leaderboard::Titan>>
+{
+    let mut sort = Document::new();
+    sort.insert("titan_stats.rating.mu", Bson::I32(-1));
+
+    let mut options = FindOptions::new();
+    options.limit = Some(size);
+    options.sort = Some(sort);
+
+    let titans: Vec<island_defense::leaderboard::Titan> = collection.find(None, Some(options))?
+        .drain_current_batch()?
+        .into_iter()
+        .filter_map(|document| bson::from_bson(Bson::Document(document)).ok())
+        .take(size as usize)
+        .map(|stats: IdStats| island_defense::leaderboard::Titan::new(stats.player.name, stats.player.realm, stats.titan_stats.rating.mu(), stats.titan_stats.wins, stats.titan_stats.losses, stats.titan_stats.ties))
+        .collect();
+
+    Ok(titans)
+}
+
+fn get_leaderboard(size: i64, collection: &Collection) -> Result<island_defense::leaderboard::LeaderBoard>
+{
+    if size < 0
+    {
+        bail!("Size: {} must be positive", size);
+    }
+
+    // TODO: Size should really be i32 so it can be set as the batch size for Mongo queries
+
+    Ok(island_defense::leaderboard::LeaderBoard::new(get_top_builders(size, collection)?, get_top_titans(size, collection)?))
+}
+
+fn leaderboard_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer, collection: Collection)
+{
+    loop 
+    {
+        let requests: Vec<(u64, i64)> = match consumer.listen()
+        {
+            Err(error) =>
+            {
+                error!("Unable to parse leaderboard request: {}", error);
+                continue;
+            },
+            Ok(data) => data,
+        };
+
+        if requests.is_empty()
+        {
+            thread::yield_now();
+        }
+
+        for (key, size) in requests
+        {
+            match get_leaderboard(size, &collection)
+            {
+                Err(error) => error!("Unable to get leaderboard of size {}. {}", size, error),
+                Ok(leaderboard) => 
+                {
+                    match producer.send_to_topic(ID_STATS_LEADERBOARD_RESPONSE_TOPIC, key, &leaderboard)
+                {
+                    Err(error) => error!("Unable to send leaderboard: {}", error),
+                    _ => trace!("Sent key: {}, size: {}, leadboard: {:?}", key, size, leaderboard),
+                }
+                }
+            } 
+        }
+    }
+}
 
 
 fn main() {
@@ -408,7 +492,20 @@ fn main() {
         stats_update_handler(consumer, collection);
     });
 
+    // Leaderboard
+    let collection = database.collection(&mongo_collecion);
+
+    let producer = PubSubProducer::new(broker_uris.clone())
+        .unwrap();
+    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_LEADERBOARD_REQUEST_TOPIC, KAFKA_GROUP)
+        .unwrap();
+
+    let leaderboard_thread = thread::spawn(move || {
+        leaderboard_handler(consumer, producer, collection);
+    });
+
     let _ = bulk_requests_thread.join(); 
     let _ = updates_thread.join();
+    let _ = leaderboard_thread.join();
     
 }
