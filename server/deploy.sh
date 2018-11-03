@@ -20,7 +20,7 @@ rm /data/w3g-all.image
 rm /data/w3g-ui.image
 
 cd /data
-/usr/local/bin/docker-compose down && /usr/local/bin/docker-compose up -d
+/usr/local/bin/docker-compose up -d
 "
 
 # TODO: restart containers using the new image + delete old image

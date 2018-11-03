@@ -6,7 +6,7 @@
 
         <h2>How are the statistics computed?</h2>
         <p>
-            The server downloads <a href="https://entgaming.net/customstats/islanddefense/games/">games</a> played and parses them to determine who played, how long the game was, and who won. If the game took over an hour it's a tie and no rating changes will occur (I don't like stallers). Otherwise the teams are ran through <a href="https://crates.io/crates/bbt">bbt</a> to get new ratings and then they're updated.
+            The server downloads <a href="https://entgaming.net/customstats/islanddefense/games/">games</a> played and parses them to determine who played, how long the game was, and who won. If the game took over an hour it's a tie and no rating changes will occur (I don't like stallers). Otherwise the teams are ran through <a href="https://crates.io/crates/bbt">bbt</a> to get new ratings and then they're updated. Everybody starts with 1500.
         </p>
 
         <h2>Future Ideas</h2>
@@ -20,7 +20,7 @@
         <p>
             Well I've had the domain names for awhile and I figured it'd make for a decent project to learn <a href="https://www.rust-lang.org/en-US/">Rust</a> (technically the UI is done in Vue but that wasn't a goal).
         </p>
-        
+
         <h2>Where did Stealer go?</h2>
         <p>
             I have a job and play hockey on 6 teams... No time.

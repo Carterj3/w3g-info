@@ -30,7 +30,7 @@
         <p>Cookies are files with small amount of data that is commonly used an anonymous unique identifier. These are
             sent to your browser from the website that you visit and are stored on your computer’s hard drive.</p>
 
-        <p>Islanddefense.info does not set any cookies but Third Party companies might</p>
+        <p>Islanddefense.info does not set any cookies but Third Party companies do (It's how Cloudflare does anti-abuse)</p>
 
         <h2>Service Providers</h2>
 
@@ -46,6 +46,7 @@
         <p> The employed third-party companies are listed below along with their policy policy: </p>
         <ul>
             <li><a href="https://www.cloudflare.com/privacypolicy/">Cloudflare</a></li>
+            <li><a href="https://www.digitalocean.com/legal/privacy-policy/">DigitalOcean</a></li>
         </ul>
 
 
