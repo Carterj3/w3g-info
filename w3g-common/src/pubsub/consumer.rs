@@ -1,6 +1,4 @@
 
-use ::errors::*;
-
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage};
 
 use rmp_serde::Deserializer;
@@ -11,6 +9,9 @@ use byteorder::{BigEndian, ReadBytesExt};
 
 use std::io::Cursor;
 use std::fmt::Debug;
+
+use pubsub::model::Message;
+use ::errors::*;
 
 pub struct PubSubConsumer 
 {
@@ -40,7 +41,7 @@ impl PubSubConsumer
         )
     }
 
-    pub fn listen<D>(&mut self) -> Result<Vec<(u64, D)>>
+    pub fn listen<D>(&mut self) -> Result<Vec<(u64, Message<D>)>>
         where D: DeserializeOwned+Debug
     {
         let mut data = Vec::new();
@@ -53,8 +54,7 @@ impl PubSubConsumer
             {
                 let serialized = message.value;
                 let key = message.key.to_owned();
-
-                /* TODO: Decompress data */
+ 
                 let key = match Cursor::new(key.clone()).read_u64::<BigEndian>()
                 {
                     Err(_) =>

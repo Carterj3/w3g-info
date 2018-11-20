@@ -30,19 +30,19 @@ extern crate w3g_common;
 
 use w3g_common::errors::Result; 
 
-use w3g_common::pubsub::PubSubProducer;
-use w3g_common::pubsub::PubSubConsumer;
-use w3g_common::pubsub::model::{IdGameResult, Player, IdTeam}; 
-use w3g_common::pubsub::W3G_LOOPBACK_TOPIC;
-use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC, ID_LOBBY_REQUESTS_TOPIC, ID_STATS_UPDATES_TOPIC, ID_STATS_LEADERBOARD_REQUEST_TOPIC, ID_STATS_LEADERBOARD_RESPONSE_TOPIC};
+use w3g_common::pubsub::model::{IdStats, Message, Player};
+use w3g_common::pubsub::producer::PubSubProducer;
+use w3g_common::pubsub::consumer::PubSubConsumer;
+use w3g_common::pubsub::{ID_LOBBY_STATS_RESPONSE_TOPIC, ID_LEADER_BOARD_REQUEST_TOPIC, ID_LEADER_BOARD_RESPONSE_TOPIC};
 
 use w3g_common::api::island_defense;
 
+use std::collections::VecDeque;
 use std::sync::Mutex; 
 use std::thread;
-use std::time::Duration;
 use std::collections::HashMap;
 use std::env;
+use std::cmp::Ordering;
 
 const KAFKA_GROUP: &'static str = "w3g-router-ms";
 
@@ -52,99 +52,6 @@ struct RustRouterConfig
     id_leader_board: Mutex<Output<island_defense::leaderboard::LeaderBoard>>,
 }
 
-#[get("/")]
-fn index() -> Result<Json<Vec<(u64, String)>>> {
-
-    let broker_uris = match env::var("KAFKA_URIS")
-    {
-        Ok(uris) => vec!(uris),
-        Err(_) => vec!(String::from("localhost:9092")),
-    };
-
-    let mut producer = PubSubProducer::new(broker_uris.clone())
-        .unwrap();
-    let mut consumer = PubSubConsumer::new(broker_uris.clone(), W3G_LOOPBACK_TOPIC, KAFKA_GROUP)
-        .unwrap();
-
-    producer.send_to_topic(W3G_LOOPBACK_TOPIC, 1337, "Hello World")?;
-    let responses: Vec<(u64, String)> = consumer.listen()?;
-
-    Ok(Json(responses))
-}
-
-#[get("/leaderBoard")]
-fn leader_board_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::leaderboard::LeaderBoard>>
-{
-    let broker_uris = match env::var("KAFKA_URIS")
-    {
-        Ok(uris) => vec!(uris),
-        Err(_) => vec!(String::from("localhost:9092")),
-    };
-    let mut producer = PubSubProducer::new(broker_uris.clone())
-        .unwrap();
-
-    producer.send_to_topic(ID_STATS_LEADERBOARD_REQUEST_TOPIC, Utc::now().timestamp_nanos() as u64, 10i64)?;
-
-    thread::sleep(Duration::from_millis(50));
-
-    match common.id_leader_board.lock()
-    {
-        Ok(mut id_leader_board) => Ok(Json(id_leader_board.read().clone())),
-        Err(error) => bail!("Failed to acquire lock because {}", error),
-    }
-}
-
-#[get("/ratings")]
-fn ratings_test(common: State<RustRouterConfig>) -> Result<Json<island_defense::lobby::Lobby>>
-{
-    let broker_uris = match env::var("KAFKA_URIS")
-    {
-        Ok(uris) => vec!(uris),
-        Err(_) => vec!(String::from("localhost:9092")),
-    };
-    let mut producer = PubSubProducer::new(broker_uris.clone())
-        .unwrap();
-
-    let game1 = IdGameResult::new(  vec![Player::new("Builder1", "Test"), Player::new("Builder2", "Test")]
-                                 ,  vec![Player::new("Titan1", "Test")]
-                                 ,  IdTeam::Titan);
-    let game2 = IdGameResult::new(  vec![Player::new("builder1", "Test"), Player::new("builder2", "Test")]
-                                 ,  vec![Player::new("titan1", "Test")]
-                                 ,  IdTeam::Builder);
-
-    producer.send_to_topic(ID_STATS_UPDATES_TOPIC, Utc::now().timestamp_nanos() as u64, game1)?;
-    producer.send_to_topic(ID_STATS_UPDATES_TOPIC, Utc::now().timestamp_nanos() as u64, game2)?;
-
-    thread::sleep(Duration::from_millis(25));
-
-    let mut lobby = HashMap::new();
-    lobby.insert(0, Player::new("Builder1", "Test"));
-    lobby.insert(1, Player::new("builder2", "Test"));
-    lobby.insert(2, Player::new("titan1", "Test"));
-    lobby.insert(3, Player::new("Titan1", "Test"));
-
-    producer.send_to_topic(ID_BULK_STATS_REQUESTS_TOPIC, Utc::now().timestamp_nanos() as u64, lobby)?;
-
-    thread::sleep(Duration::from_millis(50));
-
-    match common.id_lobby.lock()
-    {
-        Ok(mut id_lobby) => Ok(Json(id_lobby.read().clone())),
-        Err(error) => bail!("Failed to acquire lock because {}", error),
-    }
-}
-
-#[get("/log")]
-fn log_test() -> &'static str {
-
-    trace!("This is a trace message");
-    debug!("This is a debug message");
-    info!("This is an info message");
-    warn!("This is a warn message");
-    error!("This is an error message");
-
-    "See logs?"
-}
 
 ///
 /// Gets the stats of all the players in the current island defense lobby
@@ -170,6 +77,8 @@ fn leaderboard_island_defense(common: State<RustRouterConfig>) -> Result<Json<is
     }
 }
 
+
+
 fn id_leader_board_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, mut buffer_input: Input<island_defense::leaderboard::LeaderBoard>)
 {
     let mut expiration_time = Utc::now().timestamp();
@@ -178,13 +87,20 @@ fn id_leader_board_updater(mut consumer: PubSubConsumer, mut producer: PubSubPro
         let current_time = Utc::now().timestamp();
         if current_time > expiration_time
         {
-            if let Ok(_) = producer.send_to_topic(ID_STATS_LEADERBOARD_REQUEST_TOPIC, 0, 10i64)
+            let debug = Some(HashMap::new());
+
+            let mut destinations = VecDeque::with_capacity(1); 
+            destinations.push_back(String::from(ID_LEADER_BOARD_RESPONSE_TOPIC));
+
+            let message: Message<u32> = Message::new(10u32, destinations, debug); 
+
+            if let Ok(_) = producer.send_to_topic(ID_LEADER_BOARD_REQUEST_TOPIC, 60u64, &message)
             {
                 expiration_time = current_time + 5;
             }
         }
 
-        let leaderboards: Vec<(u64, island_defense::leaderboard::LeaderBoard)> = match consumer.listen()
+        let responses: Vec<(u64, Message<(HashMap<u32, IdStats>, HashMap<u32, IdStats>)>)> = match consumer.listen()
         {
             Err(error) =>
             {
@@ -194,15 +110,22 @@ fn id_leader_board_updater(mut consumer: PubSubConsumer, mut producer: PubSubPro
             Ok(data) => data,
         };
 
-        if leaderboards.is_empty()
+        if responses.is_empty()
         {
             thread::yield_now();
             continue;
         }
 
-        for (key, leaderboard) in leaderboards
+        for (key, message) in responses
         { 
-            trace!("Received leaderboard response for key: {:?} = {:?}", key, leaderboard);
+            let (builders, titans) = message.data;
+            
+            let mut leaderboard = island_defense::leaderboard::LeaderBoard::new(
+                        builders.into_iter().map(|(k, v)| island_defense::leaderboard::Builder::from_id_stats(v)).collect(),
+                        titans.into_iter().map(|(k, v)| island_defense::leaderboard::Titan::from_id_stats(v)).collect());
+
+            leaderboard.builders.sort_by(|left, right| right.rating.partial_cmp(&left.rating).unwrap_or(Ordering::Equal));
+            leaderboard.titans.sort_by(|left, right| right.rating.partial_cmp(&left.rating).unwrap_or(Ordering::Equal));
 
             buffer_input.write(leaderboard);
         }
@@ -211,42 +134,121 @@ fn id_leader_board_updater(mut consumer: PubSubConsumer, mut producer: PubSubPro
 
 fn id_lobby_updater(mut consumer: PubSubConsumer, mut producer: PubSubProducer, mut buffer_input: Input<island_defense::lobby::Lobby>)
 {
-    let mut expiration_time = Utc::now().timestamp();
 
     loop {
-        let current_time = Utc::now().timestamp();
-        if current_time > expiration_time
-        {
-            if let Ok(_) = producer.send_to_topic(ID_LOBBY_REQUESTS_TOPIC, 0, "")
-            {
-                expiration_time = current_time + 5;
-            }
-        }
 
-        let bulk_stats: Vec<(u64, island_defense::lobby::Lobby)> = match consumer.listen()
+        let responses: Vec<(u64, Message<HashMap<u32, IdStats>>)> = match consumer.listen()
         {
-            Err(_) =>
+            Err(error) =>
             {
-                error!("Bad listen?");
+                error!("Bad listen? {}", error);
                 continue;
             },
             Ok(data) => data,
         };
 
-        if bulk_stats.is_empty()
+        if responses.is_empty()
         {
             thread::yield_now();
             continue;
         }
 
-        for (key, bulk_stat) in bulk_stats
+        for (key, message) in responses
         { 
-            trace!("Received lobby response for key: {:?} = {:?}", key, bulk_stat);
-
-            buffer_input.write(bulk_stat);
+            let players = message.data;
+            match convert_map_to_lobby(players)
+            {
+                Err(error) => error!("failed to convert players to lobby because {}", error),
+                Ok(lobby) => buffer_input.write(lobby),
+            }
         }
     }
 }
+
+
+fn convert_map_to_lobby(mut players: HashMap<u32, IdStats>) -> Result<island_defense::lobby::Lobby>
+{
+    if players.len() > (std::u8::MAX as usize)
+    {
+        bail!("players.len(): {} must be smaller than u8's max: {}", players.len(), std::u8::MAX);
+    }
+
+    let mut builder_stats = HashMap::with_capacity(players.len());
+    let mut builder_bbts = HashMap::with_capacity(players.len());
+    let mut titan_stats = HashMap::with_capacity(1);
+    let mut titan_bbts = HashMap::with_capacity(1);
+
+    for slot in 0..10
+    {
+        if let Some(player) = players.remove(&slot)
+        {
+            builder_bbts.insert(slot, player.builder_stats.rating.clone()); 
+            builder_stats.insert(slot, player);
+        }
+    }
+
+    for slot in 10..11
+    {
+        if let Some(player) = players.remove(&slot)
+        {
+            titan_bbts.insert(slot, player.titan_stats.rating.clone());
+            titan_stats.insert(slot, player);
+        }
+    }
+
+    let ((builder_win_builder_ratings, builder_win_titan_ratings), (titan_win_builder_ratings, titan_win_titan_ratings)) = w3g_common::rating::compute_potential_ratings(&builder_bbts, &titan_bbts)?;
+
+    let num_builders = builder_stats.len();
+    let num_titans = titan_stats.len();
+
+    let mut builders: Vec<island_defense::lobby::Builder> = Vec::with_capacity(num_builders);
+    let mut titans: Vec<island_defense::lobby::Titan> = Vec::with_capacity(num_titans);
+
+    let mut builders_rating = island_defense::lobby::Rating::new(0.0, 0.0, 0.0);
+    let mut titans_rating = island_defense::lobby::Rating::new(0.0, 0.0, 0.0);
+
+    for (slot, stat) in builder_stats.into_iter()
+    {
+        match ( builder_win_builder_ratings.get(&slot), titan_win_builder_ratings.get(&slot))
+        {
+            ( Some(win_rating), Some(loss_rating) ) =>
+            {   
+                let rating = stat.builder_stats.rating.mu();
+                let rating = island_defense::lobby::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
+
+                builders_rating.mean_rating += rating.mean_rating / (num_builders as f64);
+                builders_rating.potential_gain += rating.potential_gain / (num_builders as f64);
+                builders_rating.potential_loss += rating.potential_loss / (num_builders as f64);
+
+                builders.push(island_defense::lobby::Builder::new(slot as u8, stat.player.name, stat.player.realm, rating, stat.builder_stats.wins, stat.builder_stats.losses, stat.builder_stats.ties));
+            },
+            _ => bail!("Builder slot: {} did not have ratings computed", slot),
+        };
+    } 
+
+    for (slot, stat) in titan_stats.into_iter()
+    {
+        match ( titan_win_titan_ratings.get(&slot), builder_win_titan_ratings.get(&slot))
+        {
+            ( Some(win_rating), Some(loss_rating) ) =>
+            {   
+                let rating = stat.titan_stats.rating.mu();
+                let rating = island_defense::lobby::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
+
+                titans_rating.mean_rating += rating.mean_rating / (num_builders as f64);
+                titans_rating.potential_gain += rating.potential_gain / (num_builders as f64);
+                titans_rating.potential_loss += rating.potential_loss / (num_builders as f64);
+
+                titans.push(island_defense::lobby::Titan::new(slot as u8, stat.player.name, stat.player.realm, rating, stat.titan_stats.wins, stat.titan_stats.losses, stat.titan_stats.ties));
+            },
+            _ => bail!("Titan slot: {} did not have ratings computed", slot),
+        };
+    } 
+
+
+    Ok(island_defense::lobby::Lobby::new(island_defense::lobby::BuilderTeam::new(builders, builders_rating), island_defense::lobby::TitanTeam::new(titans, titans_rating)))
+}
+
 
 fn main() {
     let mut builder = Builder::new();
@@ -261,9 +263,7 @@ fn main() {
         Ok(uris) => vec!(uris),
         Err(_) => vec!(String::from("localhost:9092")),
     };
-    w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
-        .expect("Kafka not initialized yet");
-
+    w3g_common::pubsub::delay_until_kafka_ready(&broker_uris, KAFKA_GROUP);
    
 
     let empty_lobby = island_defense::lobby::Lobby::new(island_defense::lobby::BuilderTeam::new(Vec::new(), island_defense::lobby::Rating::new(0.0, 0.0, 0.0)), island_defense::lobby::TitanTeam::new(Vec::new(), island_defense::lobby::Rating::new(0.0, 0.0, 0.0)));
@@ -280,7 +280,7 @@ fn main() {
     // Lobby
     let producer = PubSubProducer::new(broker_uris.clone())
              .unwrap();
-    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_BULK_STATS_RESPONSES_TOPIC, KAFKA_GROUP)
+    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_LOBBY_STATS_RESPONSE_TOPIC, KAFKA_GROUP)
         .unwrap();
 
     let id_lobby_updater_thread = thread::spawn(move || {
@@ -290,7 +290,7 @@ fn main() {
     // Leaderboard
     let producer = PubSubProducer::new(broker_uris.clone())
              .unwrap();
-    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_LEADERBOARD_RESPONSE_TOPIC, KAFKA_GROUP)
+    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_LEADER_BOARD_RESPONSE_TOPIC, KAFKA_GROUP)
         .unwrap();
 
     let id_leader_board_updater_thread = thread::spawn(move || {
@@ -298,7 +298,7 @@ fn main() {
     });
 
     rocket::ignite()
-        .mount("v1", routes![index, log_test, ratings_test, leader_board_test, lobby_island_defense, leaderboard_island_defense])
+        .mount("v1", routes![lobby_island_defense, leaderboard_island_defense])
         .manage(router_config)
         .launch();
 

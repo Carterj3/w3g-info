@@ -1,48 +1,69 @@
 pub mod producer;
-
-pub use self::producer::PubSubProducer;
+use self::producer::PubSubProducer;
 
 pub mod consumer;
-
-pub use self::consumer::PubSubConsumer;
+use self::consumer::PubSubConsumer;
 
 pub mod model;
-
-pub use self::model::Player;
-pub use self::model::IdStats;
-pub use self::model::BuilderStats;
-pub use self::model::TitanStats;
-
-pub use self::model::IdTeam;
-pub use self::model::IdGameResult;
+use self::model::Message;
 
 use super::errors::Result;
 
+use std::{thread, time};
+use std::collections::VecDeque;
 
+/// Topic to Request the players in a lobby for a given bot 
+pub const ID_LOBBY_REQUEST_TOPIC: &'static str = "id-lobby-request";
+
+/// Topic to Request the stats of given players
+pub const ID_STATS_REQUEST_TOPIC: &'static str = "id-stats-request";
+
+/// Topic to Response the stats of given players
+pub const ID_LOBBY_STATS_RESPONSE_TOPIC: &'static str = "id-lobby-stats-response";
+
+/// Topic to Request a leaderboard
+pub const ID_LEADER_BOARD_REQUEST_TOPIC: &'static str = "id-leaderboard-request";
+
+/// Topic to Response to a leaderboard request
+pub const ID_LEADER_BOARD_RESPONSE_TOPIC: &'static str = "id-leaderboard-response";
+
+/// Topic to dump Replays
+pub const ID_REPLAY_TOPIC: &'static str = "id-replay-response";
+
+/// Topic to dump the results of a game (Winners / Losers)
+pub const ID_GAME_RESULT_TOPIC: &'static str = "id-result-response";
+
+/// Topic to Request/Response to verify Kafka is running
 pub const W3G_LOOPBACK_TOPIC: &'static str = "w3g-router-loopback";
 
-pub const ID_STATS_LEADERBOARD_REQUEST_TOPIC: &'static str = "id-leaderboard-request";
-pub const ID_STATS_LEADERBOARD_RESPONSE_TOPIC: &'static str = "id-leaderboard-response";
 
-pub const ID_BULK_STATS_REQUESTS_TOPIC: &'static str = "id-bulk-stats-requests";
-pub const ID_BULK_STATS_RESPONSES_TOPIC: &'static str = "id-bulk-stats-responses";
-pub const ID_STATS_UPDATES_TOPIC: &'static str = "id-stats-updates";
-
-pub const ID_LOBBY_REQUESTS_TOPIC: &'static str = "id-lobby-requests";
-
-pub const ID_REPLAY_RESPONSES_TOPIC: &'static str = "id-replays-responses";
-
-
-pub fn perform_loopback_test<S>(broker_uris: &Vec<String>, group: S) -> Result<()>
+pub fn delay_until_kafka_ready<S>(broker_uris: &[String], group: S)
     where S: Into<String>
 {
-    let mut producer = PubSubProducer::new(broker_uris.clone())
-        .unwrap();
-    let mut consumer = PubSubConsumer::new(broker_uris.clone(), W3G_LOOPBACK_TOPIC, group)
-        .unwrap();
+    let cloneable_group = group.into();
+    loop {
+        match perform_loopback_test(broker_uris, cloneable_group.to_owned())
+        {
+            Ok(_) => return,
+            Err(error) => 
+            {
+                error!("Unable to loopback on kafka, delaying. {}", error);
+                thread::sleep(time::Duration::from_secs(5));
+            },
+        }
+    }
+}
 
-    producer.send_to_topic(W3G_LOOPBACK_TOPIC, 1337, "Hello World")?;
-    let _: Vec<(u64, String)> = consumer.listen()?;
+pub fn perform_loopback_test<S>(broker_uris: &[String], group: S) -> Result<()>
+    where S: Into<String>
+{
+    let mut producer = PubSubProducer::new(broker_uris.to_owned().to_vec())?;
+    let mut consumer = PubSubConsumer::new(broker_uris.to_owned().to_vec(), W3G_LOOPBACK_TOPIC, group)?;
+
+    let message: Message<String> = Message::new(String::from("Hello, World!"), VecDeque::new(), None);
+
+    producer.send_to_topic(W3G_LOOPBACK_TOPIC, 0, &message)?;
+    let _: Vec<(u64, Message<String>)> = consumer.listen()?;
 
     Ok(())
 }

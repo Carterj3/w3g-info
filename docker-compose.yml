@@ -6,7 +6,9 @@ services:
     environment:
       LOG4J_ROOTLOGGER: ERROR, stdout
     ports:
-      - "2181:2181" 
+      - 2181
+      - 2888
+      - 3888
     networks:
       - w3g
   kafka:
@@ -20,27 +22,33 @@ services:
       KAFKA_MESSAGE_MAX_BYTES: 20000000
       KAFKA_CREATE_TOPICS_SEPARATOR: "$$'\n'"
       KAFKA_CREATE_TOPICS: |
-        w3g-router-loopback:1:1:delete --config=compression.type=snappy
+        id-lobby-request:1:1:delete --config=compression.type=snappy
+        id-stats-request:1:1:delete --config=compression.type=snappy
+        id-lobby-stats-response:1:1:delete --config=compression.type=snappy
         id-leaderboard-request:1:1:delete --config=compression.type=snappy
         id-leaderboard-response:1:1:delete --config=compression.type=snappy
-        id-bulk-stats-requests:1:1:delete --config=compression.type=snappy
-        id-bulk-stats-responses:1:1:delete --config=compression.type=snappy
-        id-stats-updates:1:1:delete --config=compression.type=snappy
-        id-lobby-requests:1:1:delete --config=compression.type=snappy
-        id-replays-responses:1:1:delete --config=compression.type=snappy
+        id-replay-response:1:1:delete --config=compression.type=snappy
+        id-result-response:1:1:delete --config=compression.type=snappy
+        w3g-router-loopback:1:1:delete --config=compression.type=snappy
+        w3g-router-loopback:1:1:delete --config=compression.type=snappy
       LOG4J_ROOTLOGGER: ERROR, stdout
     ports:
-      - "9092:9092" 
+      - 9092
     networks:
       - w3g
   mongodb:
     image: mongo
     restart: unless-stopped
     environment:
-      MONGO_DATA_DIR: /tmp/db
+      MONGO_DATA_DIR: /data/db
       MONGO_LOG_DIR: /dev/null
+    networks:
+      - w3g
+  w3g-ui:
+    image: lesuorac/w3g-ui
+    restart: unless-stopped
     ports:
-        - "27017:27017"
+      - 8080:80
     networks:
       - w3g
   w3g-router-ms:
@@ -51,10 +59,10 @@ services:
       - kafka
     environment:
       ROCKET_ENV: production
-      RUST_LOG: w3g_common=warn,w3g_router_ms=debug
+      RUST_LOG: w3g_common=error,w3g_router_ms=debug
       KAFKA_URIS: kafka:9092
     ports:
-        - "8080:80"
+      - 8000:80
     networks:
       - w3g
   w3g-stats-ms:
@@ -65,7 +73,7 @@ services:
       - kafka
       - mongodb  
     environment:  
-      RUST_LOG: w3g_common=warn,w3g_stats_ms=debug
+      RUST_LOG: w3g_common=error,w3g_stats_ms=debug
       KAFKA_URIS: kafka:9092
       MONGO_HOST: mongodb
       MONGO_PORT: 27017
@@ -80,37 +88,38 @@ services:
     depends_on:
       - kafka  
     environment:  
-      RUST_LOG: w3g_common=warn,w3g_lobby_ms=debug
+      RUST_LOG: w3g_common=error,w3g_lobby_ms=debug
       KAFKA_URIS: kafka:9092
-      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-      SSL_CERT_DIR: /etc/ssl/certs
     networks:
       - w3g
-#  w3g-downloader-ms:
-#    image: lesuorac/w3g-all
-#    command: "/app/target/x86_64-unknown-linux-musl/release/w3g-downloader-ms"
-#    restart: unless-stopped
-#    depends_on:
-#      - kafka
-#      - mongodb  
-#    environment:  
-#      RUST_LOG: w3g_common=warn,w3g_downloader_ms=trace
-#      KAFKA_URIS: kafka:9092
-#      MONGO_HOST: mongodb
-#      MONGO_PORT: 27017
-#      MONGO_DB: islandDefense
-#      MONGO_COLLECTION: replays
-#    networks:
-#      - w3g
+  w3g-downloader-ms:
+    image: lesuorac/w3g-all
+    command: "/app/target/x86_64-unknown-linux-musl/release/w3g-downloader-ms"
+    restart: unless-stopped
+    depends_on:
+      - kafka
+      - mongodb  
+    environment:  
+      RUST_LOG: w3g_common=error,w3g_downloader_ms=trace
+      KAFKA_URIS: kafka:9092
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_DB: islandDefense
+      MONGO_COLLECTION: replays
+      # REPLAY_PATH: /data/replays
+    # volumes:
+    #     - /data/replays:/data/replays
+    networks:
+      - w3g
   w3g-rating-ms:
     image: lesuorac/w3g-all
     command: "/app/target/x86_64-unknown-linux-musl/release/w3g-rating-ms"
     restart: unless-stopped
     depends_on:
       - kafka
-      #- w3g-downloader-ms
+      - w3g-downloader-ms
     environment:  
-      RUST_LOG: w3g_common=warn,w3g_rating_ms=trace
+      RUST_LOG: w3g_common=error,w3g_rating_ms=info
       KAFKA_URIS: kafka:9092
     networks:
       - w3g

@@ -36,10 +36,10 @@ use regex::Regex;
 extern crate w3g_common;
 
 use w3g_common::errors::Result;
-use w3g_common::pubsub::model::Player;
+use w3g_common::pubsub::model::{Player, Message};
 use w3g_common::pubsub::producer::PubSubProducer;
-use w3g_common::pubsub::ID_REPLAY_RESPONSES_TOPIC;
-use w3g_common::parser::Replay;
+use w3g_common::pubsub::ID_REPLAY_TOPIC;
+use w3g_common::parser::Replay; 
 
 
 use std::env; 
@@ -49,6 +49,7 @@ use std::cmp::{min, max};
 use std::time::Duration;
 use std::io::{Write, Cursor};
 use std::path::PathBuf;
+use std::collections::VecDeque;
 
 const KAFKA_GROUP: &'static str = "w3g-lobby-ms";
 
@@ -287,7 +288,9 @@ fn download_replays(replay_path: &Option<PathBuf>, mut producer: PubSubProducer,
                         {
                             debug!("parsed id: {} with {} players", game_id, players.len()); 
 
-                            match producer.send_to_topic(ID_REPLAY_RESPONSES_TOPIC, game_id as u64, (players, replay))
+                            let message = Message::new((players, replay), VecDeque::new(), None);
+
+                            match producer.send_to_topic(ID_REPLAY_TOPIC, game_id as u64, &message)
                             {
                                 Ok(_) => {
                                     trace!("sent out id: {}", game_id);
@@ -323,6 +326,14 @@ fn main() {
     }
     builder.init();
 
+    /* Kafka */
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
+    w3g_common::pubsub::delay_until_kafka_ready(&broker_uris, KAFKA_GROUP);
+
     /* Mongo */
     let mongo_host = env::var("MONGO_HOST")
         .unwrap_or(String::from("localhost"));
@@ -354,15 +365,6 @@ fn main() {
 
     // TODO: Create index on replays for `game_id`
     let collection = database.collection(&mongo_collecion); 
-
-    /* Kafka */
-    let broker_uris = match env::var("KAFKA_URIS")
-    {
-        Ok(uris) => vec!(uris),
-        Err(_) => vec!(String::from("localhost:9092")),
-    };
-    w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
-        .expect("Kafka not initialized yet");
 
     let producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();

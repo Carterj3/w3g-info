@@ -43,13 +43,14 @@ services:
       KAFKA_CREATE_TOPICS_SEPARATOR: "$$'\n'"
       KAFKA_CREATE_TOPICS: |
         w3g-router-loopback:1:1:delete --config=compression.type=snappy
+        id-lobby-request:1:1:delete --config=compression.type=snappy
+        id-stats-request:1:1:delete --config=compression.type=snappy
+        id-lobby-stats-response:1:1:delete --config=compression.type=snappy
         id-leaderboard-request:1:1:delete --config=compression.type=snappy
         id-leaderboard-response:1:1:delete --config=compression.type=snappy
-        id-bulk-stats-requests:1:1:delete --config=compression.type=snappy
-        id-bulk-stats-responses:1:1:delete --config=compression.type=snappy
-        id-stats-updates:1:1:delete --config=compression.type=snappy
-        id-lobby-requests:1:1:delete --config=compression.type=snappy
-        id-replays-responses:1:1:delete --config=compression.type=snappy
+        id-replay-response:1:1:delete --config=compression.type=snappy
+        id-result-response:1:1:delete --config=compression.type=snappy
+        w3g-router-loopback:1:1:delete --config=compression.type=snappy
       LOG4J_ROOTLOGGER: ERROR, stdout
     networks:
       - w3g

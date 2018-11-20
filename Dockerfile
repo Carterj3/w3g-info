@@ -1,5 +1,5 @@
 #FROM rustlang/rust:nightly AS base
-FROM clux/muslrust:nightly AS base
+FROM clux/muslrust:nightly-2018-11-15 AS base
 
 # https://jstoelm.com/episodes/40-rust-in-production-with-docker/
 ## TODO: https://blog.semicolonsoftware.de/building-minimal-docker-containers-for-rust-applications/
@@ -17,7 +17,7 @@ RUN rustc --version && cargo build --release
 CMD cargo run --release
 
 ## Move the binaries into a new container
-FROM alpine:latest
+FROM alpine:3.8
 
 COPY --from=base /app/target/x86_64-unknown-linux-musl/release/w3g-*-ms /app/target/x86_64-unknown-linux-musl/release/
 

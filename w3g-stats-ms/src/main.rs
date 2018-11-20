@@ -12,7 +12,7 @@ extern crate bson;
 
 use mongodb::coll::Collection;
 use mongodb::coll::results::UpdateResult;
-use mongodb::coll::options::{UpdateOptions, FindOptions};
+use mongodb::coll::options::{UpdateOptions, FindOptions, IndexOptions};
 use mongodb::{Client, ThreadedClient};
 use mongodb::db::ThreadedDatabase; 
 
@@ -24,24 +24,22 @@ use bbt::Rater;
 extern crate regex;
 
 extern crate w3g_common; 
- 
-use w3g_common::api::island_defense;
 
-use w3g_common::pubsub::PubSubConsumer;
+use w3g_common::pubsub::consumer::PubSubConsumer;
 
-use w3g_common::pubsub::PubSubProducer;
+use w3g_common::pubsub::producer::PubSubProducer;
 
+use w3g_common::pubsub::model::Message;
 use w3g_common::pubsub::model::Player;
 use w3g_common::pubsub::model::IdStats; 
 use w3g_common::pubsub::model::IdTeam;
 use w3g_common::pubsub::model::IdGameResult;
 
-use w3g_common::pubsub::{ID_BULK_STATS_RESPONSES_TOPIC, ID_STATS_UPDATES_TOPIC, ID_BULK_STATS_REQUESTS_TOPIC, ID_STATS_LEADERBOARD_REQUEST_TOPIC, ID_STATS_LEADERBOARD_RESPONSE_TOPIC};
+use w3g_common::pubsub::{ID_LEADER_BOARD_REQUEST_TOPIC, ID_STATS_REQUEST_TOPIC, ID_GAME_RESULT_TOPIC};
 
 use w3g_common::errors::Result;
 
-use std::collections::HashMap;
-use std::thread;
+use std::collections::HashMap; 
 use std::env;
 
 const KAFKA_GROUP: &'static str = "id-stats-ms";
@@ -66,7 +64,11 @@ fn find_player_stats(player: &Player, collection: &Collection) -> IdStats
             match bson::from_bson(Bson::Document(stats))
             {
                 Ok(stats) => stats,
-                Err(_) => IdStats::default(player.clone()),
+                Err(error) => 
+                {
+                    error!("failed to parse bson for player: {:?} because {}", player, error);
+                    IdStats::default(player.clone())
+                },
             }
         },
         Ok(None) => IdStats::default(player.clone()),
@@ -131,308 +133,181 @@ fn update_ratings(builders: &Vec<IdStats>, titans: &Vec<IdStats>, outcome: &IdTe
     Ok((builder_ratings, titan_ratings))
 }
 
-fn stats_update_handler(mut consumer: PubSubConsumer, collection: Collection)
+fn update_stats(result: IdGameResult, collection: &Collection) -> Result<()>
 {
-    loop {
-        let games: Vec<(u64, IdGameResult)> = match consumer.listen()
+    let (titan_wins, titan_ties, titan_losses, builder_wins, builder_ties, builder_losses) = match result.winner
+    {
+        IdTeam::Builder => (0, 0, 1, 1, 0, 0),
+        IdTeam::Titan   => (1, 0, 0, 0, 0, 1),
+        IdTeam::Tie     => (0, 1, 0, 0, 1, 0),
+    };
+
+    let mut builder_stats = Vec::new();
+    let mut titan_stats = Vec::new();
+
+    for builder in result.builders
+    {
+        builder_stats.push(find_player_stats(&builder, collection));
+    }
+    for titan in result.titans
+    {
+        titan_stats.push(find_player_stats(&titan, collection));
+    }
+
+    let builder_stats_len = builder_stats.len();
+    let (builder_ratings, titan_ratings) = update_ratings(&builder_stats, &titan_stats, &result.winner)?;
+
+    for i in 0..builder_stats.len()
+    {
+        match (builder_stats.get_mut(i), builder_ratings.get(i))
         {
-            Err(error) =>
+            (Some(stats), Some(new_rating)) =>
             {
-                error!("Unable to listen because: {}", error);
-                continue;
-            },
-            Ok(data) => data,
-        };
+                stats.builder_stats.rating = new_rating.clone();
+                stats.builder_stats.wins += builder_wins;
+                stats.builder_stats.losses += builder_losses;
+                stats.builder_stats.ties += builder_ties;
 
-        if games.is_empty()
-        {
-            thread::yield_now();
-        }
-
-        for (game_id, result) in games
-        {
-            info!("Updating stats in game: {} per: {:?}", game_id, result);
-            
-            let (titan_wins, titan_ties, titan_losses, builder_wins, builder_ties, builder_losses) = match result.winner
-            {
-                IdTeam::Builder => (0, 0, 1, 1, 0, 0),
-                IdTeam::Titan   => (1, 0, 0, 0, 0, 1),
-                IdTeam::Tie     => (0, 1, 0, 0, 1, 0),
-            };
-
-            let mut builder_stats = Vec::new();
-            let mut titan_stats = Vec::new();
-
-            for builder in result.builders
-            {
-                builder_stats.push(find_player_stats(&builder, &collection));
-            }
-            for titan in result.titans
-            {
-                titan_stats.push(find_player_stats(&titan, &collection));
-            }
-
-            let builder_stats_len = builder_stats.len();
-            match update_ratings(&builder_stats, &titan_stats, &result.winner)
-            {
-                Err(error) => error!("Unable to updating ratings: {}", error),
-                Ok((builder_ratings, titan_ratings)) =>
+                match update_player_stats(&stats, &collection)
                 {
-                    for i in 0..builder_stats.len()
-                    {
-                        match (builder_stats.get_mut(i), builder_ratings.get(i))
-                        {
-                            (Some(stats), Some(new_rating)) =>
-                            {
-                                stats.builder_stats.rating = new_rating.clone();
-                                stats.builder_stats.wins += builder_wins;
-                                stats.builder_stats.losses += builder_losses;
-                                stats.builder_stats.ties += builder_ties;
-
-                                match update_player_stats(&stats, &collection)
-                                {
-                                    Ok(_) => trace!("Updated stats for player: {:?}", stats.player),
-                                    Err(error) => error!("Failed to update stats for player: {:?} because {}", stats.player, error),
-                                }
-                            },
-                            _ => error!("Index: {} was outside of stats: {} or ratings: {}", i, builder_stats_len, builder_ratings.len()),
-                        }
-                    }
-
-                    let titan_stats_len = titan_stats.len();
-                    for i in 0..titan_stats.len()
-                    {
-                        match (titan_stats.get_mut(i), titan_ratings.get(i))
-                        {
-                            (Some(stats), Some(new_rating)) =>
-                            {
-                                stats.titan_stats.rating = new_rating.clone();
-                                stats.titan_stats.wins += titan_wins;
-                                stats.titan_stats.losses += titan_losses;
-                                stats.titan_stats.ties += titan_ties;
-
-                                match update_player_stats(&stats, &collection)
-                                {
-                                    Ok(_) => trace!("Updated stats for player: {:?}", stats.player),
-                                    Err(error) => error!("Failed to update stats for player: {:?} because {}", stats.player, error),
-                                }
-                            },
-                            _ => error!("Index: {} was outside of stats: {} or ratings: {}", i, titan_stats_len, builder_ratings.len()),
-                        }
-                    }
+                    Ok(_) => trace!("Updated stats for player: {:?}", stats.player),
+                    Err(error) => error!("Failed to update stats for player: {:?} because {}", stats.player, error),
                 }
-            }
+            },
+            _ => error!("Index: {} was outside of stats: {} or ratings: {}", i, builder_stats_len, builder_ratings.len()),
         }
     }
+
+    let titan_stats_len = titan_stats.len();
+    for i in 0..titan_stats.len()
+    {
+        match (titan_stats.get_mut(i), titan_ratings.get(i))
+        {
+            (Some(stats), Some(new_rating)) =>
+            {
+                stats.titan_stats.rating = new_rating.clone();
+                stats.titan_stats.wins += titan_wins;
+                stats.titan_stats.losses += titan_losses;
+                stats.titan_stats.ties += titan_ties;
+
+                match update_player_stats(&stats, &collection)
+                {
+                    Ok(_) => trace!("Updated stats for player: {:?}", stats.player),
+                    Err(error) => error!("Failed to update stats for player: {:?} because {}", stats.player, error),
+                }
+            },
+            _ => error!("Index: {} was outside of stats: {} or ratings: {}", i, titan_stats_len, builder_ratings.len()),
+        }
+    }
+
+    Ok(())
 }
 
-
-fn convert_map_to_lobby(players: &HashMap<u8, Player>, collection: &Collection) -> Result<island_defense::lobby::Lobby>
+fn get_top_players(size: u32, sort: Document, collection: &Collection) -> Result<HashMap<u32, IdStats>>
 {
-    let mut builder_stats = HashMap::with_capacity(players.len());
-    let mut builder_bbts = HashMap::with_capacity(players.len());
-    let mut titan_stats = HashMap::with_capacity(1);
-    let mut titan_bbts = HashMap::with_capacity(1);
-
-    for slot in 0..10
-    {
-        if let Some(player) = players.get(&slot)
-        {
-            let stat = find_player_stats(player, collection);
-            builder_bbts.insert(slot, stat.builder_stats.rating.clone()); 
-            builder_stats.insert(slot, stat);
-        }
-    }
-
-    for slot in 10..11
-    {
-        if let Some(player) = players.get(&slot)
-        {
-            let stat = find_player_stats(player, collection); 
-            titan_bbts.insert(slot, stat.titan_stats.rating.clone());
-            titan_stats.insert(slot, stat);
-        }
-    }
-
-    let ((builder_win_builder_ratings, builder_win_titan_ratings), (titan_win_builder_ratings, titan_win_titan_ratings)) = w3g_common::rating::compute_potential_ratings(&builder_bbts, &titan_bbts)?;
-
-    let num_builders = builder_stats.len();
-    let num_titans = titan_stats.len();
-
-    let mut builders: Vec<island_defense::lobby::Builder> = Vec::with_capacity(num_builders);
-    let mut titans: Vec<island_defense::lobby::Titan> = Vec::with_capacity(num_titans);
-
-    let mut builders_rating = island_defense::lobby::Rating::new(0.0, 0.0, 0.0);
-    let mut titans_rating = island_defense::lobby::Rating::new(0.0, 0.0, 0.0);
-
-    for (slot, stat) in builder_stats.into_iter()
-    {
-        match ( builder_win_builder_ratings.get(&slot), titan_win_builder_ratings.get(&slot))
-        {
-            ( Some(win_rating), Some(loss_rating) ) =>
-            {   
-                let rating = stat.builder_stats.rating.mu();
-                let rating = island_defense::lobby::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
-
-                builders_rating.mean_rating += rating.mean_rating / (num_builders as f64);
-                builders_rating.potential_gain += rating.potential_gain / (num_builders as f64);
-                builders_rating.potential_loss += rating.potential_loss / (num_builders as f64);
-
-                builders.push(island_defense::lobby::Builder::new(slot, stat.player.name, stat.player.realm, rating, stat.builder_stats.wins, stat.builder_stats.losses, stat.builder_stats.ties));
-            },
-            _ => bail!("Builder slot: {} did not have ratings computed", slot),
-        };
-    } 
-
-    for (slot, stat) in titan_stats.into_iter()
-    {
-        match ( titan_win_titan_ratings.get(&slot), builder_win_titan_ratings.get(&slot))
-        {
-            ( Some(win_rating), Some(loss_rating) ) =>
-            {   
-                let rating = stat.titan_stats.rating.mu();
-                let rating = island_defense::lobby::Rating::new(rating, win_rating.mu() - rating, loss_rating.mu() - rating);
-
-                titans_rating.mean_rating += rating.mean_rating / (num_builders as f64);
-                titans_rating.potential_gain += rating.potential_gain / (num_builders as f64);
-                titans_rating.potential_loss += rating.potential_loss / (num_builders as f64);
-
-                titans.push(island_defense::lobby::Titan::new(slot, stat.player.name, stat.player.realm, rating, stat.titan_stats.wins, stat.titan_stats.losses, stat.titan_stats.ties));
-            },
-            _ => bail!("Titan slot: {} did not have ratings computed", slot),
-        };
-    } 
-
-
-    Ok(island_defense::lobby::Lobby::new(island_defense::lobby::BuilderTeam::new(builders, builders_rating), island_defense::lobby::TitanTeam::new(titans, titans_rating)))
-}
-
-fn stats_bulk_request_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer, collection: Collection)
-{
-    loop 
-    {
-        let lobbies: Vec<(u64, HashMap<u8, Player>)> = match consumer.listen()
-        {
-            Err(_) =>
-            {
-                error!("Error?");
-                continue;
-            },
-            Ok(data) => data,
-        };
-
-        if lobbies.is_empty()
-        {
-            thread::yield_now();
-        }
-
-        for (key, lobby) in lobbies
-        {
-            match convert_map_to_lobby(&lobby, &collection)
-            {
-                Err(error) => error!("Unable to convert lobby: {:?}, {}", lobby, error),
-                Ok(lobby_stats) => 
-                {
-                    match producer.send_to_topic(ID_BULK_STATS_RESPONSES_TOPIC, key, lobby_stats)
-                {
-                    Err(error) => error!("Unable to send lobby stats: {}", error),
-                    _ => (),
-                }
-                }
-            } 
-        }
-    }
-}
-
-fn get_top_builders(size: i64, collection: &Collection) -> Result<Vec<island_defense::leaderboard::Builder>>
-{
-    let mut sort = Document::new();
-    sort.insert("builder_stats.rating.mu", Bson::I32(-1));
-
-    let mut options = FindOptions::new();
-    options.limit = Some(size);
+    let mut options = FindOptions::new(); 
+    options.limit = Some(size as i64);
     options.sort = Some(sort);
 
-    let builders: Vec<island_defense::leaderboard::Builder> = collection.find(None, Some(options))?
-        .drain_current_batch()?
-        .into_iter()
-        .filter_map(|document| bson::from_bson(Bson::Document(document)).ok())
-        .take(size as usize)
-        .map(|stats: IdStats| island_defense::leaderboard::Builder::new(stats.player.name, stats.player.realm, stats.builder_stats.rating.mu(), stats.builder_stats.wins, stats.builder_stats.losses, stats.builder_stats.ties))
-        .collect();
+    let mut players: HashMap<u32, IdStats> = HashMap::with_capacity(size as usize);
+    let mut cursor = collection.find(None, Some(options))?;
 
-    Ok(builders)
-}
-
-fn get_top_titans(size: i64, collection: &Collection) -> Result<Vec<island_defense::leaderboard::Titan>>
-{
-    let mut sort = Document::new();
-    sort.insert("titan_stats.rating.mu", Bson::I32(-1));
-
-    let mut options = FindOptions::new();
-    options.limit = Some(size);
-    options.sort = Some(sort);
-
-    let titans: Vec<island_defense::leaderboard::Titan> = collection.find(None, Some(options))?
-        .drain_current_batch()?
-        .into_iter()
-        .filter_map(|document| bson::from_bson(Bson::Document(document)).ok())
-        .take(size as usize)
-        .map(|stats: IdStats| island_defense::leaderboard::Titan::new(stats.player.name, stats.player.realm, stats.titan_stats.rating.mu(), stats.titan_stats.wins, stats.titan_stats.losses, stats.titan_stats.ties))
-        .collect();
-
-    Ok(titans)
-}
-
-fn get_leaderboard(size: i64, collection: &Collection) -> Result<island_defense::leaderboard::LeaderBoard>
-{
-    if size < 0
+    while players.len() < (size as usize) &&  cursor.has_next()?
     {
-        bail!("Size: {} must be positive", size);
-    }
-
-    // TODO: Size should really be i32 so it can be set as the batch size for Mongo queries
-
-    Ok(island_defense::leaderboard::LeaderBoard::new(get_top_builders(size, collection)?, get_top_titans(size, collection)?))
-}
-
-fn leaderboard_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer, collection: Collection)
-{
-    loop 
-    {
-        let requests: Vec<(u64, i64)> = match consumer.listen()
+        for player in cursor.drain_current_batch()?
+                            .into_iter()
+                            .filter_map(|document| bson::from_bson(Bson::Document(document)).ok())
+                            .collect::<Vec<IdStats>>()
         {
-            Err(error) =>
+            if ! (players.len() < (size as usize))
             {
-                error!("Unable to parse leaderboard request: {}", error);
-                continue;
-            },
-            Ok(data) => data,
-        };
+                trace!("Almost increased players map beyond requested size");
+                break;
+            }
 
-        if requests.is_empty()
-        {
-            thread::yield_now();
-        }
-
-        for (key, size) in requests
-        {
-            match get_leaderboard(size, &collection)
-            {
-                Err(error) => error!("Unable to get leaderboard of size {}. {}", size, error),
-                Ok(leaderboard) => 
-                {
-                    match producer.send_to_topic(ID_STATS_LEADERBOARD_RESPONSE_TOPIC, key, &leaderboard)
-                {
-                    Err(error) => error!("Unable to send leaderboard: {}", error),
-                    _ => trace!("Sent key: {}, size: {}, leadboard: {:?}", key, size, leaderboard),
-                }
-                }
-            } 
+            let rank = players.len() as u32;
+            players.insert(rank, player);
         }
     }
+        
+    Ok(players)
 }
 
+  
+ 
+
+fn leaderboard_handler(collection: &Collection, consumer: &mut PubSubConsumer, producer: &mut PubSubProducer) -> Result<()>
+{
+    let messages: Vec<(u64, Message<u32>)> = consumer.listen()?;
+
+    for (key, mut message) in messages.into_iter()
+    {
+        match message.destinations.pop_front()
+        {
+            None => {},
+            Some(topic) =>
+            {
+                let size = message.data;
+                let debug = message.debug;
+
+                let mut builders_sort = Document::new();
+                builders_sort.insert("builder_stats.rating.mu", Bson::I32(-1));
+                let builders = get_top_players(size, builders_sort, collection)?;
+
+                let mut titans_sort = Document::new();
+                titans_sort.insert("titan_stats.rating.mu", Bson::I32(-1));
+                let titans = get_top_players(size, titans_sort, collection)?;
+ 
+                let response: Message<(HashMap<u32, IdStats>, HashMap<u32, IdStats>)> = Message::new((builders, titans), message.destinations, debug);
+
+                producer.send_to_topic(&topic, key, &response)?;
+            }
+        }  
+    }
+
+    Ok(())
+}
+
+fn lobby_handler(collection: &Collection, consumer: &mut PubSubConsumer, producer: &mut PubSubProducer) -> Result<()>
+{
+    let messages: Vec<(u64, Message<HashMap<u32, Player>>)> = consumer.listen()?;
+
+    for (key, mut message) in messages.into_iter()
+    {
+        match message.destinations.pop_front()
+        {
+            None => {},
+            Some(topic) =>
+            {
+                let players = message.data;
+                let debug = message.debug;
+
+                let mut stats = HashMap::with_capacity(players.len());
+                for (key, player) in players.into_iter()
+                {
+                    stats.insert(key, find_player_stats(&player, collection));
+                }
+ 
+                let response: Message<HashMap<u32, IdStats>> = Message::new(stats, message.destinations, debug);
+
+                producer.send_to_topic(&topic, key, &response)?;
+            }
+        }
+    }  
+    Ok(())
+}
+
+fn stats_update_handler(collection: &Collection, consumer: &mut PubSubConsumer, producer: &mut PubSubProducer) -> Result<()>
+{
+    let messages: Vec<(u64, Message<IdGameResult>)> = consumer.listen()?;
+
+    for (key, message) in messages.into_iter()
+    {
+        update_stats(message.data, collection)?;
+    }
+    
+    Ok(())
+}
 
 fn main() {
     let mut builder = Builder::new();
@@ -442,6 +317,15 @@ fn main() {
     }
     builder.init();
 
+    // Kafka set-up
+    let broker_uris = match env::var("KAFKA_URIS")
+    {
+        Ok(uris) => vec!(uris),
+        Err(_) => vec!(String::from("localhost:9092")),
+    };
+    w3g_common::pubsub::delay_until_kafka_ready(&broker_uris, KAFKA_GROUP);
+
+    // Mongo set-up
     let mongo_host = env::var("MONGO_HOST")
         .unwrap_or(String::from("localhost"));
 
@@ -459,53 +343,66 @@ fn main() {
     let client = Client::connect(&mongo_host, mongo_port)
         .unwrap();
     let database = client.db(&mongo_db);
-    // TODO: Create index on player-stats for `player.name`+`player.realm`
 
+    // Create Index
+    let _ = database.create_collection(&mongo_collecion, None);
+    let collection = database.collection(&mongo_collecion);
+    
+    collection.drop_indexes()
+        .unwrap();
 
-    let broker_uris = match env::var("KAFKA_URIS")
-    {
-        Ok(uris) => vec!(uris),
-        Err(_) => vec!(String::from("localhost:9092")),
-    };
-    w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
-        .expect("Kafka not initialized yet");
+    let mut builder_options = IndexOptions::new();
+    builder_options.name = Some(String::from("builders_rating"));
+    builder_options.unique = Some(false);
+    builder_options.background = Some(false);
 
-    // Bulk Stats Requests
+    let mut builders_rating_index = Document::new();
+    builders_rating_index.insert("builder_stats.rating.mu", Bson::I32(-1));
+    collection.create_index(builders_rating_index, Some(builder_options))
+        .unwrap();
+
+    let mut titan_options = IndexOptions::new();
+    titan_options.name = Some(String::from("titans_rating"));
+    titan_options.unique = Some(false);
+    titan_options.background = Some(false);
+
+    let mut titans_rating_index = Document::new();
+    titans_rating_index.insert("titan_stats.rating.mu", Bson::I32(-1));
+    collection.create_index(titans_rating_index, Some(titan_options))
+        .unwrap();
+
+    
+
+    // Request loop
     let collection = database.collection(&mongo_collecion);
    
-    let producer = PubSubProducer::new(broker_uris.clone())
+    let mut producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();
-    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_BULK_STATS_REQUESTS_TOPIC, KAFKA_GROUP)
+    let mut leaderboard_consumer = PubSubConsumer::new(broker_uris.clone(), ID_LEADER_BOARD_REQUEST_TOPIC, KAFKA_GROUP)
         .unwrap();
-
-    let bulk_requests_thread = thread::spawn(move || {
-        stats_bulk_request_handler(consumer, producer, collection);
-    });
-
-    // Stats Updates
-    let collection = database.collection(&mongo_collecion);
-
-    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_UPDATES_TOPIC, KAFKA_GROUP)
+    let mut lobby_consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_REQUEST_TOPIC, KAFKA_GROUP)
+        .unwrap();
+    let mut stats_update_consumer = PubSubConsumer::new(broker_uris.clone(), ID_GAME_RESULT_TOPIC, KAFKA_GROUP)
         .unwrap();
 
-    let updates_thread = thread::spawn(move || {
-        stats_update_handler(consumer, collection);
-    });
+    loop {
+        match leaderboard_handler(&collection, &mut leaderboard_consumer, &mut producer)
+        {
+            Ok(_) => {},
+            Err(error) => error!("Failed to handle leadboard request because {}", error),
+        }
 
-    // Leaderboard
-    let collection = database.collection(&mongo_collecion);
+        match lobby_handler(&collection, &mut lobby_consumer, &mut producer)
+        {
+            Ok(_) => {},
+            Err(error) => error!("Failed to handle lobby request because {}", error),
+        }
 
-    let producer = PubSubProducer::new(broker_uris.clone())
-        .unwrap();
-    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_STATS_LEADERBOARD_REQUEST_TOPIC, KAFKA_GROUP)
-        .unwrap();
-
-    let leaderboard_thread = thread::spawn(move || {
-        leaderboard_handler(consumer, producer, collection);
-    });
-
-    let _ = bulk_requests_thread.join(); 
-    let _ = updates_thread.join();
-    let _ = leaderboard_thread.join();
+        match stats_update_handler(&collection, &mut stats_update_consumer, &mut producer)
+        {
+            Ok(_) => {},
+            Err(error) => error!("Failed to handle stats update request because {}", error),
+        }
+    }
     
 }

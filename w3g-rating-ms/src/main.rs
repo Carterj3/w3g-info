@@ -10,18 +10,14 @@ use env_logger::{Builder, Target};
 extern crate w3g_common;
 
 use w3g_common::parser::{Replay, ReplayBlock, Action, Command};
-use w3g_common::pubsub::PubSubProducer;
-use w3g_common::pubsub::PubSubConsumer;
-use w3g_common::pubsub::IdGameResult;
-use w3g_common::pubsub::IdTeam;
-use w3g_common::pubsub::Player;
-use w3g_common::pubsub::ID_REPLAY_RESPONSES_TOPIC;
-use w3g_common::pubsub::ID_STATS_UPDATES_TOPIC;
+use w3g_common::pubsub::producer::PubSubProducer;
+use w3g_common::pubsub::consumer::PubSubConsumer;
+use w3g_common::pubsub::model::{IdGameResult, IdTeam, Player, Message};
+use w3g_common::pubsub::{ID_REPLAY_TOPIC, ID_GAME_RESULT_TOPIC}; 
 
 use w3g_common::errors::Result;
 
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, VecDeque, HashSet}; 
 use std::time::Duration;
 use std::env;
 use std::thread;
@@ -199,10 +195,9 @@ fn replays_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer)
 {
     let one_hour = Duration::from_secs(60*60);
     
-
     loop
     {
-        let games: Vec<(u64, (Vec<Player>, Replay))> = match consumer.listen()
+        let games: Vec<(u64, Message<(Vec<Player>, Replay)>)> = match consumer.listen()
         {
             Err(error) =>
             {
@@ -217,8 +212,11 @@ fn replays_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer)
             thread::yield_now();
         }
 
-        for (game_id, (players, replay)) in games
+        for (game_id, message) in games
         {
+
+            let (players, replay) = message.data;
+
             let mut result = match get_game_result(&players, &replay)
             {
                 Err(error) =>
@@ -235,10 +233,12 @@ fn replays_handler(mut consumer: PubSubConsumer, mut producer: PubSubProducer)
                 result.winner = IdTeam::Tie;
             }
 
-            match producer.send_to_topic(ID_STATS_UPDATES_TOPIC, game_id, &result)
+            let response: Message<IdGameResult> = Message::new(result, VecDeque::new(), None);
+
+            match producer.send_to_topic(ID_GAME_RESULT_TOPIC, game_id, &response)
             {
                 Err(error) => error!("Failed to send result for game_id: {} because {}", game_id, error),
-                _ => info!("Sent stats for game_id: {}. Result: {:?}", game_id, result),
+                _ => info!("Sent stats for game_id: {}. Result: {:?}", game_id, response.data),
             }
 
         }
@@ -260,18 +260,16 @@ fn main() {
         Ok(uris) => vec!(uris),
         Err(_) => vec!(String::from("localhost:9092")),
     };
-    w3g_common::pubsub::perform_loopback_test(&broker_uris, KAFKA_GROUP)
-        .expect("Kafka not initialized yet");
+    w3g_common::pubsub::delay_until_kafka_ready(&broker_uris, KAFKA_GROUP);
 
     let producer = PubSubProducer::new(broker_uris.clone())
         .unwrap();
-    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_REPLAY_RESPONSES_TOPIC, KAFKA_GROUP)
+    let consumer = PubSubConsumer::new(broker_uris.clone(), ID_REPLAY_TOPIC, KAFKA_GROUP)
         .unwrap();
 
     let replay_thread = thread::spawn(move || {
         replays_handler(consumer, producer);
     });
 
-    let _ = replay_thread.join();
-
+    let _ = replay_thread.join(); 
 }

@@ -1,5 +1,27 @@
 use bbt::Rating;
+use std::hash::{Hash, Hasher};
 
+use std::collections::{HashMap, VecDeque};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Message<T>
+ {
+    pub data: T,
+    pub destinations: VecDeque<String>,
+    pub debug: Option<HashMap<String, String>>,
+}
+
+impl <T> Message<T>
+{
+    pub fn new(data: T, destinations: VecDeque<String>, debug: Option<HashMap<String, String>>) -> Message<T> 
+    {
+        Message {
+            data,
+            destinations,
+            debug,
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct Player {
@@ -19,7 +41,7 @@ impl Player
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum IdTeam
 {
     Builder,
@@ -27,7 +49,7 @@ pub enum IdTeam
     Tie,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct IdGameResult {
     pub builders: Vec<Player>,
     pub titans: Vec<Player>,
@@ -46,7 +68,7 @@ impl IdGameResult
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Hash)]
 pub struct IdStats {
     pub player: Player,
     pub builder_stats: BuilderStats,
@@ -87,6 +109,15 @@ impl BuilderStats
     }
 }
 
+impl Hash for BuilderStats {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        /* f64 (rating) cannot be hashed */
+        self.wins.hash(state);
+        self.losses.hash(state);
+        self.ties.hash(state);
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct TitanStats
 {
@@ -106,5 +137,14 @@ impl TitanStats
             losses: 0,
             ties: 0,
         }
+    }
+}
+
+impl Hash for TitanStats {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        /* f64 (rating) cannot be hashed */
+        self.wins.hash(state);
+        self.losses.hash(state);
+        self.ties.hash(state);
     }
 }

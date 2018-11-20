@@ -1,7 +1,4 @@
 
-use std::time::Duration;
-use std::fmt::Debug;
-
 use kafka::producer::{Producer, Record, RequiredAcks};
 
 use rmp_serde::Serializer;
@@ -10,6 +7,10 @@ use serde::Serialize;
 
 use byteorder::{WriteBytesExt, BigEndian};
 
+use std::time::Duration;
+use std::fmt::Debug;
+
+use pubsub::model::Message;
 use ::errors::*;
 
 pub struct PubSubProducer 
@@ -37,13 +38,13 @@ impl PubSubProducer
 
     /*
         let mut serialized = Vec::new();
-        original_replay.serialize(&mut rmp_serde::Serializer::new(&mut serialized)).unwrap();
+        original_replay.serialize(&mut rmp_serde::Serializer::new(&mut serialized`)).unwrap();
         
         let mut de = rmp_serde::Deserializer::new(&serialized[..]);
         let deserialized: Replay = Deserialize::deserialize(&mut de).unwrap();
     */
 
-    pub fn send_to_topic<D>(&mut self, topic: &str, key: u64, value: D) -> Result<()>
+    pub fn send_to_topic<D>(&mut self, topic: &str, key: u64, value: &Message<D>) -> Result<()>
         where D: Serialize+Debug
     {
         trace!("Sending? topic: {:?}, key: {:?}, value: {:?}", topic, key, value);
@@ -55,8 +56,6 @@ impl PubSubProducer
         value.serialize(&mut Serializer::new(&mut serialized))?;
 
         debug!("Sending? topic: {:?}, key: {:?} value.len: {}", topic, key, serialized.len());
-
-        /* TODO: Compress data */
 
         self.producer.send(&Record {
             topic: topic,
